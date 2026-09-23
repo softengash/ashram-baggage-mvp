@@ -560,8 +560,35 @@ function playBeep() {
 function startIdScanner(prefix) {
   setIdentityMode(prefix, 'resident');
   $('scanner-overlay').classList.remove('hidden');
-  if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
-  const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+  if (!html5QrCode) {
+    html5QrCode = new Html5Qrcode("reader", {
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_93,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.ITF,
+        Html5QrcodeSupportedFormats.CODABAR
+      ],
+      verbose: false
+    });
+  }
+  // Fixed pixel qrbox values get mismatched against a phone's native camera
+  // resolution/DPI (works on a laptop webcam, misses on mobile) - sizing the
+  // box as a fraction of the actual viewfinder avoids that entirely.
+  const config = {
+    fps: 10,
+    qrbox: (viewfinderWidth, viewfinderHeight) => {
+      const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+      const height = Math.floor(minEdge * 0.65);
+      const width = Math.floor(Math.min(viewfinderWidth * 0.9, height * 1.6));
+      return { width, height };
+    }
+  };
   html5QrCode.start(
     { facingMode: "environment" },
     config,
@@ -1116,7 +1143,7 @@ async function loadVolunteers() {
   if (!res.ok) return;
   $('volunteer-list').innerHTML = data.volunteers.map(v => `
     <div class="a-row">
-      <span>${v.name} <span class="muted">${v.phone}</span> ${v.isAdmin ? '<span class="tag">ADMIN</span>' : ''}</span>
+      <span>${v.name} <span class="muted">${maskPhone(v.phone)}</span> ${v.isAdmin ? '<span class="tag">ADMIN</span>' : ''}</span>
       <button onclick="removeVolunteer('${v.phone}')">Remove</button>
     </div>
   `).join('');
