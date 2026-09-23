@@ -577,7 +577,30 @@ function startIdScanner(prefix) {
         onResidentIdInput(scannerPrefix);
         toast(`Resident ID "${id}" scanned.`);
       },
-      { preferredCamera: 'environment', highlightScanRegion: true, highlightCodeOutline: true, maxScansPerSecond: 5 }
+      {
+        preferredCamera: 'environment',
+        highlightScanRegion: true,
+        highlightCodeOutline: true,
+        maxScansPerSecond: 5,
+        // Default internal downscaling is tuned for a code that already
+        // fills the frame. A small, dense ID-card QR held at a normal
+        // (in-focus) distance needs far more retained resolution than that
+        // default gives it, or it never has enough pixels-per-module to
+        // decode - this is what actually fixes "blurry up close, too small
+        // to read from a sane distance," not the crop size itself.
+        calculateScanRegion: (video) => {
+          const smallestDim = Math.min(video.videoWidth, video.videoHeight);
+          const size = Math.round(smallestDim * 0.7);
+          return {
+            x: Math.round((video.videoWidth - size) / 2),
+            y: Math.round((video.videoHeight - size) / 2),
+            width: size,
+            height: size,
+            downScaledWidth: 900,
+            downScaledHeight: 900
+          };
+        }
+      }
     );
   }
   qrScanner.start().catch(() => {
