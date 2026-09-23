@@ -3,7 +3,7 @@
 A volunteer-run digital ledger for baggage & valuables custody at ashram programs. It replaces the paper sign-in sheet at the counter while leaving the physical process — numbered tokens, hooks, a basket — completely unchanged. Residents can scan their existing ID card to check in instantly after a one-time registration; visitors and non-residents use a phone number instead. Offline-first, so a dropped wifi connection at the counter never stops a deposit or collection.
 
 **Live demo:** [ashram-baggage-mvp.onrender.com](https://ashram-baggage-mvp.onrender.com) *(free-tier hosting — sleeps when idle, first load can take 30–60s to wake up)*
-**Full walkthrough (screens, features, privacy model):** [Prototype Walkthrough](https://claude.ai/code/artifact/af42e01d-0670-49dd-909b-f46c79ca2e90)
+**Full walkthrough (screens, features, privacy model):** 'Prototype Walkthrough' attached with the submission form
 
 Demo volunteer login: phone `+91 9999999999` — the 6-digit code is shown on-screen (no SMS gateway is wired up; this is a demo-mode stand-in).
 
