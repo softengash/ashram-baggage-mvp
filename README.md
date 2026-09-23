@@ -1,4 +1,4 @@
-# Ashram Baggage Custody
+# Ashram Baggage
 
 A volunteer-run digital ledger for baggage & valuables custody at ashram programs. It replaces the paper sign-in sheet at the counter while leaving the physical process — numbered tokens, hooks, a basket — completely unchanged. Residents can scan their existing ID card to check in instantly after a one-time registration; visitors and non-residents use a phone number instead. Offline-first, so a dropped wifi connection at the counter never stops a deposit or collection.
 
