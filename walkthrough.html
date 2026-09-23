@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ashram Baggage Custody &mdash; Prototype Walkthrough</title>
+<style>
+:root{
+  --bg:#edf1ef; --surface:#ffffff; --surface-2:#f5f8f7;
+  --ink:#1b2836; --muted:#5c6b74; --line:#d7dfdb;
+  --brass:#a9762f; --brass-ink:#7a5420;
+  --teal:#0f6a5e; --teal-bg:#e4f2ee;
+  --danger:#9c3b34; --danger-bg:#f8e9e6;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141b23; --surface:#1c2530; --surface-2:#212b37;
+    --ink:#e9edf0; --muted:#93a2ac; --line:#2c3844;
+    --brass:#d9a256; --brass-ink:#f0c27e;
+    --teal:#4fb8a5; --teal-bg:#1b3833;
+    --danger:#e2887e; --danger-bg:#3a2422;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141b23; --surface:#1c2530; --surface-2:#212b37;
+  --ink:#e9edf0; --muted:#93a2ac; --line:#2c3844;
+  --brass:#d9a256; --brass-ink:#f0c27e;
+  --teal:#4fb8a5; --teal-bg:#1b3833;
+  --danger:#e2887e; --danger-bg:#3a2422;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--sans);font-weight:800;letter-spacing:-.02em;text-wrap:balance;margin:0}
+::selection{background:var(--teal);color:#fff}
+
+.wrap{max-width:1180px;margin:0 auto;padding:0 5vw 90px}
+
+/* ---------- HERO ---------- */
+.hero{padding:56px 0 40px;border-bottom:1px solid var(--line)}
+.hero-inner{max-width:1180px;margin:0 auto;padding:0 5vw}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--brass-ink);background:var(--surface-2);border:1px solid var(--line);border-radius:99px;padding:6px 13px;margin-bottom:18px}
+.eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--teal)}
+.hero h1{font-size:clamp(30px,4.6vw,44px);max-width:17ch;line-height:1.15}
+.hero h1 .accent{color:var(--teal)}
+.hero .tag{color:var(--muted);max-width:60ch;font-size:16px;margin-top:14px}
+
+.hero-points{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:26px}
+@media(max-width:760px){.hero-points{grid-template-columns:1fr}}
+.hero-point{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--teal);border-radius:11px;padding:14px 16px;font-size:13.5px;color:var(--muted);line-height:1.45}
+.hero-point b{color:var(--ink);display:block;font-size:14.5px;margin-bottom:3px}
+
+.ticket{
+  margin-top:32px;background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  display:grid;grid-template-columns:1fr auto;overflow:hidden;
+}
+.ticket-main{padding:22px 26px}
+.ticket-main .k{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.ticket-main .v{font-family:var(--mono);font-size:15px;margin-top:6px;word-break:break-all}
+.ticket-main .v a{color:var(--teal);text-decoration:none;border-bottom:1px solid currentColor}
+.ticket-stub{
+  background:var(--surface-2);border-left:1px dashed var(--line);padding:22px 24px;
+  display:flex;flex-direction:column;justify-content:center;gap:8px;max-width:280px
+}
+.ticket-stub .k{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.ticket-stub .v{font-size:13px;color:var(--ink);line-height:1.45}
+@media(max-width:640px){.ticket{grid-template-columns:1fr}.ticket-stub{border-left:none;border-top:1px dashed var(--line);max-width:none}}
+
+/* ---------- SECTIONS ---------- */
+.section{padding:56px 0;border-bottom:1px solid var(--line)}
+.section:last-child{border-bottom:0}
+.section-head{max-width:720px;margin-bottom:32px}
+.section-num{font-family:var(--mono);font-size:13px;color:var(--brass-ink);font-weight:700;margin-bottom:8px}
+.section-head h2{font-size:clamp(22px,3vw,28px)}
+.section-head p{color:var(--muted);margin-top:10px;font-size:15px;max-width:64ch}
+
+.grid{display:grid;gap:24px}
+.two{grid-template-columns:minmax(280px,360px) 1fr}
+.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:880px){.two,.three,.four{grid-template-columns:1fr}}
+
+/* ---------- PHONE MOCK ---------- */
+.phone{
+  width:100%;max-width:340px;margin:0 auto;background:var(--surface-2);
+  border:1px solid var(--line);border-radius:22px;padding:16px;position:relative;
+}
+.phone-bar{display:flex;justify-content:space-between;align-items:center;background:var(--ink);color:#fff;border-radius:12px 12px 0 0;padding:10px 14px;font-size:12px;margin:-16px -16px 14px}
+.phone-bar .status{display:flex;align-items:center;gap:6px;font-size:10.5px;opacity:.85}
+.phone-bar .status .d{width:6px;height:6px;border-radius:50%;background:#5fe0a7}
+.phone-bar .status.off .d{background:#e2887e}
+.phone h3{font-size:19px;margin-bottom:3px}
+.phone .sub{color:var(--muted);font-size:12.5px;margin-bottom:14px}
+.pbtn{width:100%;border:0;border-radius:11px;padding:13px;font-weight:700;font-size:13.5px;text-align:center;margin:6px 0;background:var(--ink);color:#fff}
+.pbtn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink)}
+.pbtn.teal{background:var(--teal);color:#fff}
+.pfield{border:1px solid var(--line);border-radius:9px;background:var(--surface);padding:10px 12px;margin:6px 0;font-size:13px}
+.pfield .k{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px}
+.pfield .v{font-family:var(--mono)}
+.pfield .placeholder{font-family:var(--sans);color:var(--muted);font-style:italic}
+.ptabs{display:grid;grid-template-columns:1fr 1fr;background:var(--surface);border-radius:99px;padding:3px;margin:10px 0;border:1px solid var(--line)}
+.ptabs div{text-align:center;font-size:11.5px;font-weight:700;padding:7px;border-radius:99px;color:var(--muted)}
+.ptabs div.on{background:var(--ink);color:#fff}
+.pnote{background:var(--teal-bg);color:var(--teal);border-radius:8px;padding:9px 11px;font-size:12px;font-weight:600;margin:8px 0}
+.pnote.warn{background:var(--danger-bg);color:var(--danger)}
+.pmini{border:1px dashed var(--line);border-radius:9px;padding:10px 12px;margin:8px 0;font-size:12.5px}
+.prow{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:8px 0;border-bottom:1px solid var(--line)}
+.prow:last-child{border-bottom:0}
+.pcounter{display:flex;align-items:center;gap:10px}
+.pcounter button{width:24px;height:24px;border-radius:6px;border:1px solid var(--line);background:var(--surface);font-weight:700}
+.pill{font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;background:var(--teal-bg);color:var(--teal)}
+.pill.warn{background:var(--danger-bg);color:var(--danger)}
+
+/* ---------- EXPLAIN CARD ---------- */
+.explain h3{font-size:17px;margin-bottom:8px}
+.explain p{color:var(--muted);font-size:14.5px;margin:0 0 10px}
+.explain ul{margin:0;padding-left:19px;color:var(--muted);font-size:14px}
+.explain li{margin-bottom:6px}
+.explain li b{color:var(--ink)}
+
+/* ---------- FEATURE GRID CARDS ---------- */
+.fcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px}
+.fcard .icon{width:34px;height:34px;border-radius:9px;background:var(--teal-bg);color:var(--teal);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:800;font-size:13px;margin-bottom:12px}
+.fcard h3{font-size:15.5px;margin-bottom:6px}
+.fcard p{color:var(--muted);font-size:13.5px;margin:0}
+
+/* ---------- CALLOUT ---------- */
+.callout{border-radius:16px;padding:22px 26px;border:1px solid var(--line);background:var(--surface)}
+.callout h3{font-size:16px;margin-bottom:8px}
+.callout p{color:var(--muted);font-size:14px;margin:0}
+.callout code{font-family:var(--mono);background:var(--surface-2);color:var(--ink);padding:1px 6px;border-radius:5px;font-size:12.5px}
+
+footer{padding:40px 5vw 60px;color:var(--muted);font-size:13px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+footer b{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow"><span class="dot"></span>Ashram Baggage Custody &middot; Prototype Walkthrough</div>
+    <h1>The token and hook stay the same.<br>The <span class="accent">paperwork</span> doesn't.</h1>
+    <p class="tag">A volunteer-run digital ledger for baggage &amp; valuables custody at ashram programs, offline-first and privacy-conscious, running on a single Node server.</p>
+
+    <div class="hero-points">
+      <div class="hero-point"><b>Residents</b>Scan an ID card once. Every visit after that is instant.</div>
+      <div class="hero-point"><b>Visitors</b>Just a phone number &mdash; no ID card, no app to install.</div>
+      <div class="hero-point"><b>Volunteers</b>Keep the exact token-and-hook counter they already run.</div>
+    </div>
+
+    <div class="ticket">
+      <div class="ticket-main">
+        <span class="k">Live prototype</span>
+        <div class="v"><a href="https://ashram-baggage-mvp.onrender.com" target="_blank" rel="noopener">ashram-baggage-mvp.onrender.com</a></div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:4px;font-family:var(--sans)">Free-tier hosting sleeps when idle &mdash; first load can take 30&ndash;60s to wake up.</div>
+        <span class="k" style="margin-top:14px;display:block">Demo volunteer login</span>
+        <div class="v">Phone +91 99999 99999 &middot; the 6-digit code is shown on-screen (demo mode, no SMS gateway)</div>
+      </div>
+      <div class="ticket-stub">
+        <span class="k">Design principle</span>
+        <span class="v">The app is a companion record, not a replacement. The physical token &mdash; and the ashram's existing paper process &mdash; remain the real fallback if this system is ever unavailable.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- SCREENS -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">Walkthrough</div>
+    <h2>Screen by screen, in the order a volunteer uses them</h2>
+    <p>Every mockup below mirrors the actual running app &mdash; same button labels, same copy.</p>
+  </div>
+
+  <div class="grid two" style="margin-bottom:26px">
+    <div class="phone">
+      <div class="phone-bar"><span>Ashram Baggage</span><span class="status"><span class="d"></span>Not logged in</span></div>
+      <h3>Volunteer Login</h3>
+      <div class="sub">Login once with your phone. Your name is attached to every transaction automatically after that.</div>
+      <div class="pfield"><span class="k">Phone Number</span><span class="v">+91 98765 43210</span></div>
+      <div class="pbtn">SEND CODE</div>
+      <div class="pnote">DEMO MODE &mdash; code shown on-screen: <b>582917</b></div>
+    </div>
+    <div class="explain">
+      <h3>1 &middot; Login &amp; role</h3>
+      <p>Only phone numbers an admin has added can sign in &mdash; there's no open sign-up. One login screen serves both volunteers and admins; the Admin section simply appears if that phone is flagged as admin.</p>
+      <ul>
+        <li><b>Demo-mode OTP:</b> since no SMS gateway is wired up, the 6-digit code is returned in the API response and shown on-screen.</li>
+        <li><b>Session persists</b> in the browser until Logout, so a volunteer doesn't re-verify between transactions.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grid two" style="margin-bottom:26px">
+    <div class="phone">
+      <div class="phone-bar"><span>Priya &middot; +91 98765&hellip;</span><span class="status"><span class="d"></span>Online</span></div>
+      <h3>Counter</h3>
+      <div class="sub">Choose what you need to do.</div>
+      <div class="pmini"><span class="k">Storage</span> 12 / 30 &middot; <span class="pill">AVAILABLE 18</span></div>
+      <div class="pbtn">+ DEPOSIT</div>
+      <div class="pbtn">&#10003; COLLECT</div>
+      <div class="pbtn ghost">&#9638; STORAGE</div>
+      <div class="pbtn ghost">&#8801; HISTORY</div>
+    </div>
+    <div class="explain">
+      <h3>2 &middot; Home / Counter</h3>
+      <p>Deliberately two dominant actions. Everything a volunteer does 95% of the time is Deposit or Collect; Storage, History and Admin are one tap away but visually secondary.</p>
+      <ul>
+        <li>Live occupancy (<b>occupied / total hooks</b>) is always visible, so a volunteer knows before opening Deposit whether there's room.</li>
+        <li>Admin Settings only appears for the up-to-3 phones flagged as admin.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grid two" style="margin-bottom:26px">
+    <div class="phone">
+      <div class="phone-bar"><span>Deposit</span><span class="status"><span class="d"></span>Online</span></div>
+      <h3>Identify Customer</h3>
+      <div class="ptabs"><div>Phone Number</div><div class="on">Resident ID</div></div>
+      <div class="pfield" style="display:flex;gap:6px;align-items:center">
+        <span class="v placeholder" style="flex:1">Type or scan Resident ID</span><span class="pill" style="background:var(--ink);color:#fff">&#128247; SCAN ID</span>
+      </div>
+    </div>
+    <div class="explain">
+      <h3>3 &middot; Deposit &mdash; Identify Customer</h3>
+      <p>This is where the ID-card capability lives. Tapping <b>Scan&nbsp;ID</b> opens the camera and scans the card's QR code, switches the tab automatically, and fills the field &mdash; the country-code box only ever appears in Phone Number mode, never alongside an ID.</p>
+      <ul>
+        <li>Unrecognized ID &rarr; a 10-second inline registration form (name + phone), no separate screen.</li>
+        <li>Known ID &rarr; instant green &ldquo;Resident matched&rdquo; confirmation with a <b>masked</b> phone number.</li>
+        <li>Registering while offline still lets the deposit proceed &mdash; it queues and syncs automatically.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grid two" style="margin-bottom:26px">
+    <div class="phone">
+      <div class="phone-bar"><span>Deposit</span><span class="status"><span class="d"></span>Online</span></div>
+      <h3>Deposit</h3>
+      <div class="pnote">&#10003; Resident matched: <b>Ravi Kumar</b> &mdash; phone &bull;&bull;3210</div>
+      <div class="prow"><span>Bags</span><div class="pcounter"><button>&minus;</button><b>2</b><button>+</button></div></div>
+      <div class="prow"><span>Valuables / Phones</span><div class="pcounter"><button>&minus;</button><b>1</b><button>+</button></div></div>
+      <div class="pfield"><span class="k">Physical Token Number</span><span class="v">501</span></div>
+      <div class="pbtn">CREATE DEPOSIT</div>
+    </div>
+    <div class="explain">
+      <h3>4 &middot; Deposit details &amp; confirmation</h3>
+      <p>Bags and valuables are simple counters &mdash; no free text. The physical token number is the one thing a volunteer must key in from the basket; the system rejects a token that's already marked occupied, catching mixed-up baskets before they become a lost-item problem.</p>
+      <ul>
+        <li>On success: a confirmation screen shows the masked phone, the token/hook number, and &ldquo;place belongings on hook #501&rdquo;.</li>
+        <li>One token = one active transaction. Adding more items later goes through <b>Add More Items</b>, not a second deposit.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grid two" style="margin-bottom:26px">
+    <div class="phone">
+      <div class="phone-bar"><span>Collect / Manage</span><span class="status"><span class="d"></span>Online</span></div>
+      <h3>Token #501</h3>
+      <div class="prow"><span>Bags</span><b>2</b></div>
+      <div class="prow"><span>Valuables</span><b>1</b></div>
+      <div class="prow"><span>Phone</span><b>&bull;&bull;3210</b></div>
+      <div class="pbtn">&#10003; COLLECT ALL</div>
+      <div class="pbtn ghost">&#8862; COLLECT PARTIALLY</div>
+      <div class="pbtn ghost">+ ADD MORE ITEMS</div>
+      <div class="pbtn ghost">&#9998; EDIT DETAILS</div>
+    </div>
+    <div class="explain">
+      <h3>5 &middot; Collect / Manage Deposit</h3>
+      <p>One workspace per token instead of scattered actions. A volunteer finds the token, then picks exactly one of four things to do &mdash; the system derives partial vs. full status from remaining quantity, so nobody has to remember which button means what.</p>
+      <ul>
+        <li><b>Collect Partially</b> keeps the same token active for whatever's left.</li>
+        <li><b>Collect All</b> immediately frees the hook and closes the transaction.</li>
+        <li>The phone shown for verification is masked &mdash; the volunteer only needs the customer to confirm the last digits.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grid two" style="margin-bottom:26px">
+    <div class="phone">
+      <div class="phone-bar"><span>Lost Token Recovery</span><span class="status"><span class="d"></span>Online</span></div>
+      <h3>Lost Token Recovery</h3>
+      <div class="sub">Exception path &mdash; phone lookup is not a normal replacement for the physical token.</div>
+      <div class="ptabs"><div class="on">Phone Number</div><div>Resident ID</div></div>
+      <div class="pfield"><span class="k">Phone Number</span><span class="v">+91 98765 43210</span></div>
+      <div class="pbtn">FIND ACTIVE DEPOSITS</div>
+      <div class="pmini">Token #501 &middot; 2 bags &middot; 1 valuable<br><span style="color:var(--muted)">Select this deposit &rarr; requires a recovery note before release</span></div>
+    </div>
+    <div class="explain">
+      <h3>6 &middot; Lost Token Recovery</h3>
+      <p>The only place phone/ID lookup substitutes for the physical token &mdash; and it's clearly labeled an exception. The same identify tabs apply here (a resident can search by ID too), but authorizing collection requires a recovery note (supervisor approval, fine collected, ID checked) before release.</p>
+    </div>
+  </div>
+
+  <div class="grid two" style="margin-bottom:26px">
+    <div class="phone">
+      <div class="phone-bar"><span>Storage</span><span class="status"><span class="d"></span>Online</span></div>
+      <h3>18 / 30</h3>
+      <div class="sub">Occupied &middot; 12 available &middot; 1 abandoned</div>
+      <div class="pmini" style="background:var(--danger-bg);border-color:transparent;color:var(--danger)">&#9888; Needs Follow-up &mdash; 1 active deposit past the abandoned-item threshold</div>
+      <div class="prow"><span>Token #501</span><span class="pill">ACTIVE</span></div>
+      <div class="prow"><span>Token #417</span><span class="pill warn">ABANDONED</span></div>
+    </div>
+    <div class="explain">
+      <h3>7 &middot; Storage</h3>
+      <p>Operational visibility, not customer data &mdash; no names or phone numbers here, just occupancy, a capacity bar, and a recent-activity feed. Deposits still on the hook past an admin-set hour threshold surface as a gentle follow-up flag, not a hard alert.</p>
+    </div>
+  </div>
+
+  <div class="grid two" style="margin-bottom:26px">
+    <div class="phone">
+      <div class="phone-bar"><span>History</span><span class="status"><span class="d"></span>Online</span></div>
+      <h3>Transactions</h3>
+      <div class="pfield"><span class="k">Search</span><span class="v">Phone / token / name / Resident ID</span></div>
+      <div class="pmini"><b>Token #501</b> <span class="pill">ACTIVE</span><br>&bull;&bull;3210 &middot; Ravi Kumar &middot; ID R-1042 &middot; 2 bags &middot; 1 valuable</div>
+      <div class="pmini"><b>Token #417</b> <span class="pill">COLLECTED</span><br>&bull;&bull;7788 &middot; 1 bag</div>
+    </div>
+    <div class="explain">
+      <h3>8 &middot; History</h3>
+      <p>A single searchable ledger across active and completed transactions &mdash; by phone, token, name, <i>or Resident ID</i>, so a volunteer can find a resident's past visit without needing their token in hand. Every phone number is shown masked.</p>
+    </div>
+  </div>
+
+  <div class="grid two">
+    <div class="phone">
+      <div class="phone-bar"><span>Admin / Setup</span><span class="status"><span class="d"></span>Online</span></div>
+      <h3>Admin / Setup</h3>
+      <div class="pmini"><b>Storage &amp; Privacy</b><br><span style="color:var(--muted)">Hooks, retention days, abandoned-hours, privacy notice</span></div>
+      <div class="pmini"><b>Volunteer Directory</b><br><span style="color:var(--muted)">Add/remove volunteers, up to 3 admins</span></div>
+      <div class="pmini"><b>Resident ID Directory</b><br><span style="color:var(--muted)">Search, view masked phone, remove an ID</span></div>
+      <div class="pbtn ghost">RUN PURGE NOW</div>
+    </div>
+    <div class="explain">
+      <h3>9 &middot; Admin / Setup</h3>
+      <p>Everything that shapes the other screens lives here, gated to admin phones only. The Resident ID Directory sits deliberately apart from the Volunteer Directory &mdash; residents aren't staff, and their records are exempt from the transaction retention purge below.</p>
+    </div>
+  </div>
+</div>
+
+<!-- RESILIENCE -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">Resilience</div>
+    <h2>Ashram wifi drops. The counter can't.</h2>
+    <p>Every write &mdash; deposits, collections, resident registration, and now admin settings changes &mdash; goes through the same offline queue. Nothing is lost to a dead connection; nothing silently fails.</p>
+  </div>
+  <div class="grid three">
+    <div class="fcard"><div class="icon">&#9679;</div><h3>Queued locally</h3><p>Offline actions save to the phone instantly with a clear &ldquo;will sync automatically&rdquo; toast, and stay visible in a pending-items list.</p></div>
+    <div class="fcard"><div class="icon">&#8635;</div><h3>Auto-sync</h3><p>Reconnects retry every few seconds in the background; a manual &ldquo;Sync Now&rdquo; is always available too.</p></div>
+    <div class="fcard"><div class="icon">&#9873;</div><h3>Admin changes included</h3><p>An admin editing settings or the resident directory offline used to fail silently. It now queues like everything else &mdash; other volunteers' phones simply see the updated settings the next time they load that screen after it syncs.</p></div>
+  </div>
+  <p style="color:var(--muted);font-size:14px;margin-top:20px;max-width:64ch">And if the digital system itself is ever fully down: the ashram's existing manual token-and-paper process is still there underneath it, unchanged, as the ultimate fallback.</p>
+</div>
+
+<!-- PRIVACY -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">Privacy &amp; security</div>
+    <h2>Four identity stores, one masking rule, one narrow purge</h2>
+    <p>Every phone number the app ever shows a volunteer is masked to the last 4 digits &mdash; across all four places one can live. What differs between them is how long each is kept, and that difference is deliberate.</p>
+  </div>
+
+  <div class="grid four" style="margin-bottom:24px">
+    <div class="fcard">
+      <div class="icon">V</div>
+      <h3>Volunteer Directory</h3>
+      <p>Staff who can log in. Admin-managed, phone masked in the list. Kept indefinitely &mdash; removed only when an admin removes that volunteer.</p>
+    </div>
+    <div class="fcard">
+      <div class="icon">R</div>
+      <h3>Resident Directory</h3>
+      <p>ID &rarr; name + masked phone, built the first time a resident registers. A deliberate, permanent membership record &mdash; that's what makes every later scan instant. Exempt from the purge below; removed only if an admin removes that ID.</p>
+    </div>
+    <div class="fcard">
+      <div class="icon">T</div>
+      <h3>Transactions</h3>
+      <p>One record per deposit: token, bags, valuables, phone, name, timestamps. This is the <b>only</b> store the automatic purge touches &mdash; phone and name are redacted once a completed transaction is older than the retention window.</p>
+    </div>
+    <div class="fcard">
+      <div class="icon">&#8635;</div>
+      <h3>Visitor recognition</h3>
+      <p>Not a stored directory &mdash; a live check of &ldquo;has this phone deposited before?&rdquo; against Transactions. A visitor who returns within the retention window gets their name pre-filled; once their last visit ages past retention and purges, so does the recognition. Convenience that expires with the data, by construction.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <h3>Why the purge stays this narrow</h3>
+    <p>The purge only ever redacts <code>phone</code> and <code>name</code> on completed transactions &mdash; nothing else on that record, and neither Directory. A purged transaction can still show a Resident ID next to it; that's not a leak &mdash; the Resident Directory already keeps that exact ID&rarr;name/phone match permanently, by design (that permanence is what makes repeat scans instant). Widening the purge to also strip Resident IDs from old transactions wouldn't remove any information a lookup couldn't already recover; it would just make History harder to search.</p>
+  </div>
+</div>
+
+<!-- STACK -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">Under the hood</div>
+    <h2>Deliberately small surface area</h2>
+    <p>One server file, one HTML file, one JSON datastore &mdash; chosen so the whole thing installs and runs anywhere with just Node.</p>
+  </div>
+  <div class="grid three">
+    <div class="fcard"><div class="icon">FE</div><h3>Frontend</h3><p>HTML5, CSS3 (mobile-first grid/flexbox), vanilla JavaScript (ES6+), Fetch API, Web Storage API (localStorage) &mdash; no build step.</p></div>
+    <div class="fcard"><div class="icon">BE</div><h3>Backend &amp; data</h3><p>Node.js + Express, deployed on Render's free tier. A single JSON file datastore via the <code>fs</code> module &mdash; zero native database dependencies.</p></div>
+    <div class="fcard"><div class="icon">&#128247;</div><h3>Scanning &amp; sync</h3><p><a href="https://github.com/nimiq/qr-scanner" style="color:inherit">qr-scanner</a> for camera-based QR capture, chosen specifically for its reliability on iOS Safari; phone + OTP auth (demo-simulated); a localStorage-backed offline queue with automatic background sync.</p></div>
+  </div>
+</div>
+
+<!-- PATH TO PRODUCTION -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">Path to production</div>
+    <h2>What this needs before it holds anyone's real belongings</h2>
+    <p>This is a working prototype, proving the product idea &mdash; not yet load-tested for a real deployment. Here's what would actually need to change to run it for real: 500+ hooks, 10&ndash;15 volunteers transacting at once, and up to 3 admins occasionally updating settings.</p>
+  </div>
+  <div class="grid four">
+    <div class="fcard">
+      <div class="icon">01</div>
+      <h3>Concurrent writes at volume</h3>
+      <p>Every request currently reads and rewrites the whole <code>data.json</code> file. That's safe today only because each route finishes its read-modify-write in one uninterrupted pass &mdash; it won't hold up under 10&ndash;15 volunteers transacting at once over months of history. Needs a real datastore (SQLite with WAL, or Postgres).</p>
+    </div>
+    <div class="fcard">
+      <div class="icon">02</div>
+      <h3>Real authentication</h3>
+      <p>Admin- and volunteer-gated actions currently trust whatever phone number the client sends, checked only against the server's volunteer list &mdash; there's no session token tied to a verified OTP. Needs signed, expiring sessions issued at OTP verification, and a real SMS gateway with rate-limiting.</p>
+    </div>
+    <div class="fcard">
+      <div class="icon">03</div>
+      <h3>Durable hosting</h3>
+      <p>Render's free tier resets its disk on every restart or redeploy &mdash; fine for a prototype, not for real transaction data. Needs persistent storage (or a managed database) plus basic uptime monitoring.</p>
+    </div>
+    <div class="fcard">
+      <div class="icon">04</div>
+      <h3>500+ is a setting, not a wall</h3>
+      <p>Raising <code>totalHooks</code> to 500+ is a one-line config change &mdash; the app doesn't otherwise care how many hooks exist. The real scaling question is Card 01. Admin changes from up to 3 admins need no extra work: they're already infrequent and don't conflict in practice.</p>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<footer>
+  <span><b>Ashram Baggage Custody</b> &middot; Prototype Walkthrough</span>
+  <span>Physical token stays the real credential &mdash; the app records and verifies it.</span>
+</footer>
+
+</body>
+</html>
