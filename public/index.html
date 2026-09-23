@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ashram Baggage Custody</title>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
 <style>
   :root {
     --bg:#f4f5f7; --card:#fff; --text:#18212f; --muted:#687386;
@@ -98,7 +98,7 @@
   .scanner-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
   .scanner-header h3{margin:0;font-size:16px;color:var(--primary)}
   .scanner-close{background:none;border:none;font-size:18px;font-weight:bold;color:var(--muted);cursor:pointer}
-  #reader{width:100%;border-radius:12px;overflow:hidden;background:#000;min-height:250px}
+  #reader{width:100%;border-radius:12px;overflow:hidden;background:#000;min-height:250px;display:block;object-fit:cover}
   .scanner-instructions{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}
 </style>
 </head>
@@ -415,8 +415,8 @@
       <h3>📷 Scan Resident ID Card</h3>
       <button class="scanner-close" onclick="stopScanner()">✕</button>
     </div>
-    <div id="reader"></div>
-    <div class="scanner-instructions">Align the resident ID card barcode inside the window.</div>
+    <video id="reader"></video>
+    <div class="scanner-instructions">Align the resident ID card's QR code inside the frame.</div>
   </div>
 </div>
 
@@ -540,8 +540,13 @@ async function registerResident(prefix, residentId) {
   if (prefix === 'd' && !$('d-name').value) $('d-name').value = name;
 }
 
-// ---------- Camera scanner (Resident ID card barcode/QR) ----------
-let html5QrCode = null;
+// ---------- Camera scanner (Resident ID card QR code) ----------
+// qr-scanner runs its decode loop in a Web Worker and is specifically built
+// to be reliable on iOS Safari, which has no native BarcodeDetector API and
+// otherwise forces every web-based scanner onto a slow, brittle JS fallback.
+let qrScanner = null;
+let scannerPrefix = null;
+QrScanner.WORKER_PATH = 'https://unpkg.com/qr-scanner@1.4.2/qr-scanner-worker.min.js';
 
 function playBeep() {
   try {
@@ -558,62 +563,32 @@ function playBeep() {
 }
 
 function startIdScanner(prefix) {
+  scannerPrefix = prefix;
   setIdentityMode(prefix, 'resident');
   $('scanner-overlay').classList.remove('hidden');
-  if (!html5QrCode) {
-    html5QrCode = new Html5Qrcode("reader", {
-      formatsToSupport: [
-        Html5QrcodeSupportedFormats.QR_CODE,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.CODE_93,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.ITF,
-        Html5QrcodeSupportedFormats.CODABAR
-      ],
-      verbose: false
-    });
+  if (!qrScanner) {
+    qrScanner = new QrScanner(
+      document.getElementById('reader'),
+      (result) => {
+        playBeep();
+        stopScanner();
+        const id = (result.data || '').trim();
+        $(scannerPrefix + '-residentid').value = id;
+        onResidentIdInput(scannerPrefix);
+        toast(`Resident ID "${id}" scanned.`);
+      },
+      { preferredCamera: 'environment', highlightScanRegion: true, highlightCodeOutline: true, maxScansPerSecond: 5 }
+    );
   }
-  // Fixed pixel qrbox values get mismatched against a phone's native camera
-  // resolution/DPI (works on a laptop webcam, misses on mobile) - sizing the
-  // box as a fraction of the actual viewfinder avoids that entirely.
-  const config = {
-    fps: 10,
-    qrbox: (viewfinderWidth, viewfinderHeight) => {
-      const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-      const height = Math.floor(minEdge * 0.65);
-      const width = Math.floor(Math.min(viewfinderWidth * 0.9, height * 1.6));
-      return { width, height };
-    }
-  };
-  html5QrCode.start(
-    { facingMode: "environment" },
-    config,
-    (decodedText) => {
-      playBeep();
-      stopScanner();
-      const id = decodedText.trim();
-      $(prefix + '-residentid').value = id;
-      onResidentIdInput(prefix);
-      toast(`Resident ID "${id}" scanned.`);
-    },
-    () => {}
-  ).catch(() => {
+  qrScanner.start().catch(() => {
     toast('Camera access error. Enter ID or phone manually.');
     stopScanner();
   });
 }
 
 function stopScanner() {
-  if (html5QrCode && html5QrCode.isScanning) {
-    html5QrCode.stop().then(() => $('scanner-overlay').classList.add('hidden'))
-      .catch(() => $('scanner-overlay').classList.add('hidden'));
-  } else {
-    $('scanner-overlay').classList.add('hidden');
-  }
+  if (qrScanner) qrScanner.stop();
+  $('scanner-overlay').classList.add('hidden');
 }
 
 // ==================================================================
