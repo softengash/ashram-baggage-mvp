@@ -3,7 +3,7 @@
 A volunteer-run digital ledger for baggage & valuables custody at ashram programs. It replaces the paper sign-in sheet at the counter while leaving the physical process — numbered tokens, hooks, a basket — completely unchanged. Residents can scan their existing ID card to check in instantly after a one-time registration; visitors and non-residents use a phone number instead. Offline-first, so a dropped wifi connection at the counter never stops a deposit or collection.
 
 **Live demo:** [ashram-baggage-mvp.onrender.com](https://ashram-baggage-mvp.onrender.com) *(free-tier hosting — sleeps when idle, first load can take 30–60s to wake up)*
-**Full walkthrough (screens, features, privacy model):** 'Prototype Walkthrough' attached with the submission form
+**Full walkthrough (screens, features, privacy model):** [Prototype Walkthrough] (attached with the submission form)
 
 Demo volunteer login: phone `+91 9999999999` — the 6-digit code is shown on-screen (no SMS gateway is wired up; this is a demo-mode stand-in).
 
@@ -17,7 +17,7 @@ Demo volunteer login: phone `+91 9999999999` — the 6-digit code is shown on-sc
 - **Offline-first**: every write (deposits, collections, resident registration, admin setting changes) queues locally if the connection drops and syncs automatically once it's back — nothing is lost, nothing fails silently.
 - **Privacy by construction**: phone numbers are masked (`••1234`) everywhere they're displayed. Automatic purge only ever touches completed *transactions* (redacting phone/name after the retention window) — the Volunteer and Resident directories are separate, permanent records by design, since that permanence is what makes repeat scans instant.
 
-See the [full walkthrough](https://claude.ai/code/artifact/af42e01d-0670-49dd-909b-f46c79ca2e90) for a screen-by-screen tour and the reasoning behind the privacy model.
+See the [full walkthrough] (attached with the submission form) for a screen-by-screen tour and the reasoning behind the privacy model.
 
 ## Running it locally
 
@@ -47,4 +47,4 @@ render.yaml        Render deployment config
 
 ## What this needs before production
 
-This is a working prototype proving the product idea, not yet a production deployment. Before it holds anyone's real belongings it would need: a real datastore in place of the single JSON file (concurrent writes at volume), signed session tokens tied to verified OTP instead of trusting a client-supplied phone number, a real SMS gateway, and persistent storage instead of Render's free-tier ephemeral disk. See the "Path to Production" section of the [walkthrough doc](https://claude.ai/code/artifact/af42e01d-0670-49dd-909b-f46c79ca2e90) for the full breakdown.
+This is a working prototype proving the product idea, not yet a production deployment. Before it holds anyone's real belongings it would need: a real datastore in place of the single JSON file (concurrent writes at volume), signed session tokens tied to verified OTP instead of trusting a client-supplied phone number, a real SMS gateway, and persistent storage instead of Render's free-tier ephemeral disk. See the "Path to Production" section of the [walkthrough doc] (attached with the submission form) for the full breakdown.
