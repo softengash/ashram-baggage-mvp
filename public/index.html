@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ashram Baggage Custody</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root {
+    --bg:#f4f5f7; --card:#fff; --text:#18212f; --muted:#687386;
+    --border:#dfe3e8; --primary:#243b53; --accent:#0f766e;
+    --warning:#a16207; --danger:#b91c1c; --success:#166534;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text)}
+  .app{max-width:460px;margin:0 auto;background:#eef0f3;min-height:100vh;display:flex;flex-direction:column;position:relative}
+  header{background:var(--primary);color:white;padding:16px 20px;position:sticky;top:0;z-index:15}
+  header h1{font-size:18px;margin:0 0 3px}
+  header .sub{display:flex;justify-content:space-between;align-items:center;font-size:12px;opacity:.9;gap:8px}
+  header .sub #header-user{flex:1}
+  header .logout{background:none;border:1px solid rgba(255,255,255,.4);color:white;padding:3px 9px;border-radius:7px;font-size:11px;cursor:pointer}
+  .net-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:7px;background:#4ade80;vertical-align:middle}
+  .net-dot.off{background:#f87171}
+
+  #sync-line{display:flex;justify-content:space-between;align-items:center;background:#1a2c3f;padding:8px 20px;font-size:12px;color:#ffffff;position:sticky;top:56px;z-index:14;border-top:1px solid rgba(255,255,255,.15)}
+  #sync-line button{font-size:11px;padding:5px 11px;border-radius:6px;border:1px solid rgba(255,255,255,.7);background:rgba(255,255,255,.12);color:white;cursor:pointer;font-weight:600}
+  #sync-line button:disabled{opacity:.4;cursor:not-allowed;border-color:rgba(255,255,255,.3);background:transparent}
+
+  main{flex:1;padding:16px 14px 24px}
+  .screen{display:none}.screen.active{display:block}
+  .title{font-size:21px;font-weight:700;margin:4px 0 4px}
+  .subtitle{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+  .bigbtn{width:100%;padding:17px;border:0;border-radius:13px;background:var(--primary);color:#fff;font-size:16px;font-weight:700;margin:7px 0;cursor:pointer}
+  .secondary{background:#fff;color:var(--primary);border:2px solid #b9c1cb}
+  .danger{background:#fff;color:var(--danger);border:2px solid #e4b4b4}
+  .success{background:var(--accent)}
+  .ghost{background:#eef1f4;color:var(--muted);font-size:14px;font-weight:600;padding:12px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  label{display:block;font-size:12px;font-weight:650;margin:14px 0 6px}
+  input,select,textarea{width:100%;padding:13px;border:1px solid #cbd2da;border-radius:9px;background:#fff;font-size:16px}
+  input:focus{outline:2px solid #9cc7c3}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .pill{display:inline-block;padding:4px 9px;border-radius:99px;background:#e8f5ef;color:var(--success);font-size:11px;font-weight:700}
+  .pill.warn{background:#fff4d6;color:var(--warning)}
+  .stat{font-size:26px;font-weight:750}.muted{color:var(--muted);font-size:12px}
+  .phone-row{display:flex;gap:6px;align-items:stretch}
+  .phone-row .ccplus{flex:0 0 16px;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--primary)}
+  .phone-row .cc{flex:0 0 52px;padding:13px 6px;text-align:center;font-weight:700;color:var(--primary)}
+  .phone-row input.number{flex:1}
+  .input-btn-row{display:flex;gap:6px;align-items:stretch}
+  .input-btn-row input{flex:1}
+  .input-btn-row button{flex:0 0 auto;padding:0 14px;font-size:13px;font-weight:600;border-radius:9px;border:1px solid var(--primary);background:var(--primary);color:white;cursor:pointer;white-space:nowrap}
+  .idtabs{display:flex;background:#eef1f4;border-radius:999px;padding:3px;margin-top:14px;margin-bottom:8px}
+  .idtabs button{flex:1;border:0;background:transparent;padding:9px 6px;font-size:12.5px;font-weight:700;border-radius:999px;color:var(--muted);cursor:pointer}
+  .idtabs button.active{background:var(--primary);color:#fff}
+  .mini-register{border:1px dashed var(--accent);background:#f2fbf9;border-radius:9px;padding:12px;margin-top:10px}
+  .counter{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);border-radius:9px;padding:4px}
+  .counter button{width:42px;height:42px;border:0;border-radius:7px;background:#eef1f4;font-size:22px;cursor:pointer;color:var(--primary)}
+  .counter span{font-size:19px;font-weight:700}
+  .info{background:#f6f8fa;border-radius:9px;padding:11px;font-size:13px;margin-top:10px}
+  .notice{border-left:4px solid var(--warning);background:#fff8e5;padding:11px;border-radius:7px;font-size:12px;margin:10px 0}
+  .successbox{border-left:4px solid var(--accent);background:#edf9f5;padding:12px;border-radius:7px;font-size:13px;margin:10px 0}
+  .error{border-left:4px solid var(--danger);background:#fff0f0;padding:11px;border-radius:7px;font-size:12px;margin:10px 0}
+  .demo-otp-box{border:2px dashed var(--accent);background:#edf9f5;padding:12px;border-radius:9px;font-size:13px;margin-top:10px;text-align:center}
+  .demo-otp-box .code{font-size:26px;font-weight:800;letter-spacing:4px;color:var(--accent);margin-top:4px}
+
+  .nav{position:sticky;bottom:0;display:flex;background:#fff;border-top:1px solid var(--border);z-index:20}
+  .nav button{flex:1;padding:11px 3px;border:0;background:white;color:var(--muted);font-size:11px;cursor:pointer}
+  .nav button.active{color:var(--primary);font-weight:700}
+  .nav .icon{display:block;font-size:18px;margin-bottom:2px}
+
+  .footer-privacy{background:#f6f8fa;border-top:1px solid var(--border);padding:8px 14px;font-size:10.5px;color:var(--muted);line-height:1.4;text-align:center}
+
+  .listitem{padding:12px 0;border-bottom:1px solid #edf0f2}
+  .listitem:last-child{border-bottom:0}
+  .capacity-bar{height:14px;border-radius:8px;background:#eef1f4;overflow:hidden;margin-top:8px}
+  .capacity-fill{height:100%;background:var(--accent);border-radius:8px;transition:width .3s ease}
+  .activity-item{padding:9px 0;border-bottom:1px solid #edf0f2;font-size:12.5px}
+  .activity-item:last-child{border-bottom:0}
+  .back{border:0;background:none;padding:0;font-size:13px;color:var(--primary);cursor:pointer;margin-bottom:8px}
+  .toprow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .loginwrap{min-height:65vh;display:flex;align-items:center}
+  .smalllink{border:0;background:none;color:var(--primary);text-decoration:underline;cursor:pointer;padding:4px 0;font-size:12px}
+  .adminonly{border:1px dashed #b7bec8;background:#fafbfc}
+  .hidden{display:none !important}
+  .toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#18212f;color:white;padding:10px 14px;border-radius:8px;font-size:12px;z-index:60;display:none}
+  .a-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+  .a-row .tag{font-size:10px;padding:2px 7px;border-radius:8px;background:#e8f5ef;color:var(--success)}
+  .a-row button{font-size:11px;padding:5px 10px;border-radius:7px;border:1px solid var(--danger);color:var(--danger);background:white}
+  .pending-item, .failed-item{border-radius:9px;padding:10px 12px;font-size:13px;margin-bottom:8px}
+  .pending-item{background:#fff8e5;border:1px dashed var(--warning)}
+  .failed-item{background:#fff0f0;border:1px solid var(--danger)}
+
+  /* CAMERA SCANNER MODAL (Resident ID card) */
+  #scanner-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.85);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+  .scanner-card{width:100%;max-width:420px;background:#fff;border-radius:16px;padding:16px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3)}
+  .scanner-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .scanner-header h3{margin:0;font-size:16px;color:var(--primary)}
+  .scanner-close{background:none;border:none;font-size:18px;font-weight:bold;color:var(--muted);cursor:pointer}
+  #reader{width:100%;border-radius:12px;overflow:hidden;background:#000;min-height:250px}
+  .scanner-instructions{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="app">
+
+<header>
+  <h1>ASHRAM BAGGAGE</h1>
+  <div class="sub">
+    <span id="header-user">Not logged in</span>
+    <span id="net-dot" class="net-dot hidden"></span>
+    <button class="logout hidden" id="logout-btn" onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<div id="sync-line" class="hidden"></div>
+
+<main>
+
+<!-- LOGIN -->
+<section id="screen-login" class="screen active">
+  <div class="loginwrap">
+    <div style="width:100%">
+      <div class="title">Volunteer Login</div>
+      <div class="subtitle">Login once with your phone. Your name is attached to every transaction automatically after that.</div>
+      <div class="card">
+        <label>Your Phone Number</label>
+        <div class="phone-row"><span class="ccplus">+</span><input id="login-cc" class="cc" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="91"><input id="login-phone" class="number" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10" placeholder="Phone number"></div>
+        <button class="bigbtn" onclick="requestOtp()">SEND CODE</button>
+        <div id="login-msg"></div>
+      </div>
+      <div class="info">Only phone numbers added by an admin can log in. New volunteer? Ask an admin to add you first.</div>
+    </div>
+  </div>
+</section>
+
+<!-- OTP -->
+<section id="screen-otp" class="screen">
+  <button class="back" onclick="showScreen('login')">← Back</button>
+  <div class="title">Enter Code</div>
+  <div class="subtitle">A 6-digit code was sent to <span id="otp-phone-display"></span>.</div>
+  <div class="card">
+    <div id="demo-otp-display"></div>
+    <label>6-digit code</label>
+    <input id="otp-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="••••••">
+    <button class="bigbtn" onclick="verifyOtp()">VERIFY &amp; LOGIN</button>
+    <div id="otp-msg"></div>
+  </div>
+</section>
+
+<!-- HOME -->
+<section id="screen-home" class="screen">
+  <div class="title">Counter</div>
+  <div class="subtitle">Choose what you need to do.</div>
+  <div class="card">
+    <div class="row">
+      <div><div class="muted">Storage</div><div class="stat"><span id="home-occ">-</span> / <span id="home-total">-</span></div></div>
+      <span class="pill">AVAILABLE <span id="home-free">-</span></span>
+    </div>
+  </div>
+  <button class="bigbtn" onclick="openDeposit()">+ DEPOSIT</button>
+  <button class="bigbtn" onclick="openCollect()">✓ COLLECT</button>
+  <div class="grid2">
+    <button class="bigbtn secondary" onclick="showScreen('storage')">▦ STORAGE</button>
+    <button class="bigbtn secondary" onclick="showScreen('history')">≡ HISTORY</button>
+  </div>
+  <button id="home-admin-btn" class="bigbtn ghost hidden" onclick="openAdmin()">⚙ ADMIN SETTINGS</button>
+</section>
+
+<!-- DEPOSIT -->
+<section id="screen-deposit" class="screen">
+  <button class="back" onclick="showScreen('home')">← Back</button>
+  <div class="title">Deposit</div>
+  <div class="subtitle">Only enter what's needed — your name is attached automatically.</div>
+  <div class="card">
+    <label>Identify Customer</label>
+    <div class="idtabs" id="d-idtabs">
+      <button type="button" data-mode="phone" class="active" onclick="setIdentityMode('d','phone')">📱 Phone Number</button>
+      <button type="button" data-mode="resident" onclick="setIdentityMode('d','resident')">🪪 Resident ID</button>
+    </div>
+    <div id="d-phone-mode">
+      <div class="phone-row"><span class="ccplus">+</span><input id="d-cc" class="cc" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="91"><input id="d-phone" class="number" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10" placeholder="Phone number" oninput="onPhoneInput('d')"></div>
+    </div>
+    <div id="d-resident-mode" class="hidden">
+      <div class="input-btn-row"><input id="d-residentid" type="text" placeholder="Type or scan Resident ID" oninput="onResidentIdInput('d')"><button type="button" onclick="startIdScanner('d')">📷 Scan ID</button></div>
+    </div>
+    <div id="d-customer-fill"></div>
+
+    <label>Customer Name (optional)</label>
+    <input id="d-name" type="text" placeholder="Auto-filled if returning customer">
+
+    <label>Bags</label>
+    <div class="counter"><button onclick="step('d-bags',-1)">−</button><span id="d-bags">1</span><button onclick="step('d-bags',1)">+</button></div>
+
+    <label>Valuables / Phones</label>
+    <div class="counter"><button onclick="step('d-valuables',-1)">−</button><span id="d-valuables">0</span><button onclick="step('d-valuables',1)">+</button></div>
+
+    <label>Physical Token Number (from basket)</label>
+    <input id="d-token" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 383">
+
+    <div id="d-msg"></div>
+    <button class="bigbtn" onclick="submitDeposit()">CREATE DEPOSIT</button>
+  </div>
+</section>
+
+<!-- DEPOSIT CONFIRM -->
+<section id="screen-deposit-confirm" class="screen">
+  <div class="title">Deposit Created</div>
+  <div class="successbox">✓ Digital transaction is now ACTIVE.</div>
+  <div class="card" id="deposit-summary"></div>
+  <button class="bigbtn success" onclick="showScreen('home')">DONE</button>
+  <button class="bigbtn secondary" onclick="jumpToManage(lastDepositToken)">ADD MORE ITEMS TO THIS TOKEN</button>
+</section>
+
+<!-- COLLECT (find token, then Full / Partial / Add-on all in one place) -->
+<section id="screen-collect" class="screen">
+  <button class="back" onclick="showScreen('home')">← Back</button>
+  <div class="title">Collect / Manage Deposit</div>
+  <div class="subtitle">Find a token to collect it (fully or partly), add more items to it, or fix a mistake — all start the same way, with the physical token.</div>
+  <div class="card">
+    <label>Token Number</label>
+    <input id="c-token" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 383">
+    <button class="bigbtn" onclick="findToken()">FIND DEPOSIT</button>
+    <button class="bigbtn secondary" onclick="openRecovery()">LOST TOKEN — START RECOVERY</button>
+    <div id="c-find-msg"></div>
+  </div>
+
+  <div id="c-details" class="hidden">
+    <div class="card" id="c-summary"></div>
+
+    <button class="bigbtn" onclick="toggleAction('full')">✓ COLLECT ALL</button>
+    <button class="bigbtn secondary" onclick="toggleAction('partial')">⊟ COLLECT PARTIALLY</button>
+    <button class="bigbtn secondary" onclick="toggleAction('addon')">➕ ADD MORE ITEMS</button>
+    <button class="bigbtn ghost" onclick="toggleAction('edit')">✎ EDIT DETAILS</button>
+
+    <div id="action-full" class="card hidden">
+      <div class="subtitle">Hands back everything on this token and closes it out.</div>
+      <button class="bigbtn success" onclick="doFullCollect()">CONFIRM — HAND BACK EVERYTHING</button>
+    </div>
+
+    <div id="action-partial" class="card hidden">
+      <div class="subtitle">Customer is taking only some items now. Same token stays active for the rest.</div>
+      <label>Bags being collected now</label>
+      <div class="counter"><button onclick="step('p-bags',-1)">−</button><span id="p-bags">0</span><button onclick="step('p-bags',1)">+</button></div>
+      <label>Valuables being collected now</label>
+      <div class="counter"><button onclick="step('p-valuables',-1)">−</button><span id="p-valuables">0</span><button onclick="step('p-valuables',1)">+</button></div>
+      <div class="notice">Customer keeps the physical token — the transaction stays ACTIVE for the remaining items.</div>
+      <button class="bigbtn" onclick="doPartialCollect()">COMPLETE PARTIAL COLLECTION</button>
+    </div>
+
+    <div id="action-addon" class="card hidden">
+      <div class="subtitle">Add to the same active transaction — token does not change.</div>
+      <label>Additional bags</label>
+      <div class="counter"><button onclick="step('a-bags',-1)">−</button><span id="a-bags">0</span><button onclick="step('a-bags',1)">+</button></div>
+      <label>Additional valuables</label>
+      <div class="counter"><button onclick="step('a-valuables',-1)">−</button><span id="a-valuables">0</span><button onclick="step('a-valuables',1)">+</button></div>
+      <button class="bigbtn success" onclick="doAddon()">UPDATE SAME DEPOSIT</button>
+    </div>
+
+    <div id="action-edit" class="card hidden">
+      <label>Phone Number</label>
+      <div class="phone-row"><span class="ccplus">+</span><input id="e-cc" class="cc" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="91"><input id="e-phone" class="number" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10"></div>
+      <label>Name</label>
+      <input id="e-name" type="text">
+      <label>Bags</label>
+      <input id="e-bags" type="number" min="0">
+      <label>Valuables</label>
+      <input id="e-valuables" type="number" min="0">
+      <button class="bigbtn" onclick="doEdit()">SAVE CHANGES</button>
+    </div>
+
+    <div id="c-action-msg"></div>
+  </div>
+</section>
+
+<!-- LOST TOKEN RECOVERY -->
+<section id="screen-recovery" class="screen">
+  <button class="back" onclick="showScreen('collect')">← Back</button>
+  <div class="title">Lost Token Recovery</div>
+  <div class="subtitle">Exception path — phone lookup is not a normal replacement for the physical token.</div>
+  <div class="card">
+    <label>Identify Customer</label>
+    <div class="idtabs" id="r-idtabs">
+      <button type="button" data-mode="phone" class="active" onclick="setIdentityMode('r','phone')">📱 Phone Number</button>
+      <button type="button" data-mode="resident" onclick="setIdentityMode('r','resident')">🪪 Resident ID</button>
+    </div>
+    <div id="r-phone-mode">
+      <div class="phone-row"><span class="ccplus">+</span><input id="r-cc" class="cc" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="91"><input id="r-phone" class="number" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10"></div>
+    </div>
+    <div id="r-resident-mode" class="hidden">
+      <div class="input-btn-row"><input id="r-residentid" type="text" placeholder="Type or scan Resident ID" oninput="onResidentIdInput('r')"><button type="button" onclick="startIdScanner('r')">📷 Scan ID</button></div>
+    </div>
+    <div id="r-identity-status"></div>
+    <button class="bigbtn" onclick="recoverySearch()">FIND ACTIVE DEPOSITS</button>
+    <div id="r-results"></div>
+  </div>
+  <div id="r-collect-block" class="card hidden">
+    <label>Selected Token</label>
+    <input id="r-token" type="text" readonly>
+    <label>Recovery Note (supervisor approval, fine collected, ID checked, etc.)</label>
+    <input id="r-note" type="text" placeholder="e.g. Supervisor Raman approved, fine ₹50 collected">
+    <div class="notice">Requires ashram-defined verification before release.</div>
+    <button class="bigbtn success" onclick="authorizeRecovery()">AUTHORIZE &amp; COLLECT</button>
+  </div>
+  <div id="r-msg"></div>
+</section>
+
+<!-- STORAGE / OCCUPANCY -->
+<section id="screen-storage" class="screen">
+  <button class="back" onclick="showScreen('home')">← Back</button>
+  <div class="title">Storage</div>
+  <div class="subtitle">Digital visibility of the physical hook/token state.</div>
+  <div class="card">
+    <div class="row">
+      <div><div class="muted">Occupied</div><div class="stat" id="s-occupied">-</div></div>
+      <div><div class="muted">Available</div><div class="stat" id="s-free">-</div></div>
+      <div><div class="muted">Abandoned</div><div class="stat" id="s-abandoned" style="color:var(--danger)">-</div></div>
+    </div>
+    <div class="row" style="margin-top:12px;"><span class="muted">Capacity used</span><span class="muted" id="s-pct">-</span></div>
+    <div class="capacity-bar"><div class="capacity-fill" id="capacity-fill"></div></div>
+  </div>
+
+  <div class="card hidden" id="abandoned-card">
+    <b>⚠️ Needs Follow-up</b>
+    <p class="muted" style="margin:4px 0 8px;">Active deposits past the abandoned-item threshold — worth a quick check.</p>
+    <div id="abandoned-list"></div>
+  </div>
+
+  <div class="card">
+    <b>Recent Activity</b>
+    <div id="recent-activity" style="margin-top:8px;"></div>
+  </div>
+</section>
+
+<!-- HISTORY -->
+<section id="screen-history" class="screen">
+  <button class="back" onclick="showScreen('home')">← Back</button>
+  <div class="title">History</div>
+  <div class="subtitle">Search active and completed transactions.</div>
+  <div class="card">
+    <input id="h-search" placeholder="Phone / token / name / Resident ID" oninput="loadHistory()">
+  </div>
+  <div class="card" id="h-list"></div>
+</section>
+
+<!-- ADMIN -->
+<section id="screen-admin" class="screen">
+  <button class="back" onclick="showScreen('home')">← Exit</button>
+  <div class="title">Admin / Setup</div>
+  <div class="subtitle">Only admin volunteers can view or change this.</div>
+
+  <div class="card adminonly">
+    <label>Number of hooks / tokens</label>
+    <input id="a-total" type="number" min="1">
+    <label>Personal-data retention after collection (days)</label>
+    <input id="a-retention" type="number" min="1">
+    <label>Abandoned-item flag threshold (hours)</label>
+    <input id="a-abandoned" type="number" min="1">
+    <label>Privacy Notice (shown in the footer)</label>
+    <textarea id="a-privacy" style="height:70px;"></textarea>
+    <button class="bigbtn" onclick="saveConfig()">SAVE SETTINGS</button>
+    <div id="a-msg"></div>
+  </div>
+
+  <div class="card adminonly">
+    <b>Privacy — Manual Purge</b>
+    <p class="muted">Personal data on collected transactions is auto-purged after the retention period above. Trigger it now for testing:</p>
+    <button class="bigbtn secondary" onclick="runPurgeNow()">RUN PURGE NOW</button>
+    <div id="p-msg"></div>
+  </div>
+
+  <div class="card adminonly">
+    <b>Volunteer Directory</b>
+    <p class="muted">Add or remove volunteers by name and phone. Up to 3 can be marked as admin.</p>
+    <div id="volunteer-list" style="margin-top:8px;"></div>
+
+    <label>Name</label>
+    <input id="nv-name" type="text" placeholder="e.g. Suresh">
+    <label>Phone Number</label>
+    <div class="phone-row"><span class="ccplus">+</span><input id="nv-cc" class="cc" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="91"><input id="nv-phone" class="number" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10"></div>
+    <label style="display:flex; align-items:center; gap:8px; margin-top:14px;">
+      <input type="checkbox" id="nv-admin" style="width:auto;"> Make this volunteer an admin
+    </label>
+    <button class="bigbtn secondary" onclick="addVolunteer()">ADD VOLUNTEER</button>
+    <div id="nv-msg"></div>
+  </div>
+
+  <div class="card adminonly">
+    <b>🪪 Resident ID Directory</b>
+    <p class="muted">Residents are matched here after their first ID card scan (ID linked to name + phone). Phone numbers are shown masked. Remove an entry if a resident leaves or an ID was mis-scanned.</p>
+    <input id="res-search" placeholder="Search by ID or name" oninput="loadResidents()">
+    <div id="resident-list" style="margin-top:8px;"></div>
+  </div>
+</section>
+
+<div id="sync-details" class="card hidden" style="margin:0 14px 12px;">
+  <b>⏳ Waiting to Sync</b>
+  <p class="muted" style="margin:4px 0 8px;">Saved on this phone. Will upload automatically once connected.</p>
+  <div id="pending-list"></div>
+</div>
+<div id="failed-details" class="card hidden" style="margin:0 14px 12px;">
+  <b>⚠️ Needs Attention</b>
+  <p class="muted" style="margin:4px 0 8px;">Couldn't sync automatically — needs manual review.</p>
+  <div id="failed-list"></div>
+  <button class="bigbtn ghost" onclick="clearFailedQueue()">DISMISS ALL</button>
+</div>
+
+</main>
+
+<!-- CAMERA SCANNER OVERLAY (Resident ID card) -->
+<div id="scanner-overlay" class="hidden">
+  <div class="scanner-card">
+    <div class="scanner-header">
+      <h3>📷 Scan Resident ID Card</h3>
+      <button class="scanner-close" onclick="stopScanner()">✕</button>
+    </div>
+    <div id="reader"></div>
+    <div class="scanner-instructions">Align the resident ID card barcode inside the window.</div>
+  </div>
+</div>
+
+<div class="footer-privacy" id="footer-privacy">Phone numbers are collected solely for baggage identity verification and are auto-deleted after collection.</div>
+
+<nav class="nav hidden" id="bottom-nav">
+  <button onclick="showScreen('home')" data-nav="home"><span class="icon">⌂</span>Home</button>
+  <button onclick="openDeposit()" data-nav="deposit"><span class="icon">＋</span>Deposit</button>
+  <button onclick="openCollect()" data-nav="collect"><span class="icon">✓</span>Collect</button>
+  <button onclick="showScreen('storage')" data-nav="storage"><span class="icon">▦</span>Storage</button>
+  <button onclick="showScreen('history')" data-nav="history"><span class="icon">≡</span>History</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 2400); }
+function fullPhone(ccId, numberId) {
+  const cc = ($(ccId).value || '91').trim().replace(/\D/g,'') || '91';
+  const num = $(numberId).value.trim();
+  return '+' + cc + num;
+}
+function displayPhone(ccId, numberId) {
+  const cc = ($(ccId).value || '91').trim();
+  const num = $(numberId).value.trim();
+  return `+${cc} ${num}`;
+}
+// Splits a stored "+<cc><number>" string back into parts for editing.
+// Assumes a 10-digit local number (true for India and common elsewhere);
+// anything before that is treated as the country code.
+function splitPhone(full) {
+  const digits = (full || '').replace('+', '');
+  if (digits.length <= 10) return { cc: '91', number: digits };
+  return { cc: digits.slice(0, digits.length - 10), number: digits.slice(-10) };
+}
+function maskPhone(full) {
+  const digits = (full || '').replace(/\D/g, '');
+  if (digits.length <= 4) return full || '';
+  return '••' + digits.slice(-4);
+}
+
+// ==================================================================
+// RESIDENT ID IDENTITY
+// Shared by Deposit + Lost Token Recovery: a pill toggle switches the
+// identify block between "Phone Number" and "Resident ID" mode, so the
+// ID field never shows a phone country-code box next to it. A scanned/
+// typed Resident ID is looked up against the Resident Directory; an
+// unknown ID triggers a one-time 10-second registration (name + phone)
+// so future scans of the same ID resolve instantly.
+// ==================================================================
+let identityMode = { d: 'phone', r: 'phone' };
+let identityState = { d: null, r: null };
+
+function setIdentityMode(prefix, mode) {
+  identityMode[prefix] = mode;
+  identityState[prefix] = null;
+  document.querySelectorAll('#' + prefix + '-idtabs button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  $(prefix + '-phone-mode').classList.toggle('hidden', mode !== 'phone');
+  $(prefix + '-resident-mode').classList.toggle('hidden', mode !== 'resident');
+  const fillEl = prefix === 'd' ? $('d-customer-fill') : $('r-identity-status');
+  fillEl.innerHTML = '';
+}
+
+async function onPhoneInput(prefix) {
+  if (prefix !== 'd') return; // only Deposit auto-fills a returning customer's name
+  const digits = $('d-phone').value.trim();
+  if (digits.length < 6) { $('d-customer-fill').innerHTML = ''; return; }
+  const res = await fetch('/api/customer/' + encodeURIComponent(fullPhone('d-cc', 'd-phone')));
+  const data = await res.json();
+  $('d-customer-fill').innerHTML = data.name ? '<div class="successbox">✓ Returning customer found — name pre-filled.</div>' : '';
+  if (data.name && !$('d-name').value) $('d-name').value = data.name;
+}
+
+async function onResidentIdInput(prefix) {
+  const raw = $(prefix + '-residentid').value.trim();
+  const fillEl = prefix === 'd' ? $('d-customer-fill') : $('r-identity-status');
+  identityState[prefix] = null;
+  if (!raw) { fillEl.innerHTML = ''; return; }
+
+  const res = await fetch('/api/resident/' + encodeURIComponent(raw));
+  const data = await res.json();
+  if (data.found) {
+    identityState[prefix] = { phone: data.resident.phone, name: data.resident.name, residentId: raw };
+    fillEl.innerHTML = `<div class="successbox">✓ Resident matched: <b>${data.resident.name}</b> — phone ${maskPhone(data.resident.phone)}</div>`;
+    if (prefix === 'd' && !$('d-name').value) $('d-name').value = data.resident.name;
+  } else {
+    fillEl.innerHTML = `
+      <div class="mini-register">
+        <b>🆕 New Resident ID "${raw}"</b>
+        <p class="muted" style="margin:4px 0 8px;">Not seen before — 10-second one-time registration links this ID to a name and phone number.</p>
+        <label>Resident Name</label>
+        <input id="${prefix}-reg-name" type="text" placeholder="Full name">
+        <label>Resident Phone Number</label>
+        <div class="phone-row"><span class="ccplus">+</span><input id="${prefix}-reg-cc" class="cc" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="91"><input id="${prefix}-reg-phone" class="number" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10" placeholder="Phone number"></div>
+        <button class="bigbtn success" style="margin-top:10px;" onclick="registerResident('${prefix}','${raw}')">REGISTER &amp; CONTINUE</button>
+        <div id="${prefix}-reg-msg"></div>
+      </div>`;
+  }
+}
+
+async function registerResident(prefix, residentId) {
+  const name = $(prefix + '-reg-name').value.trim();
+  const phone = fullPhone(prefix + '-reg-cc', prefix + '-reg-phone');
+  if (!name || $(prefix + '-reg-phone').value.trim().length < 6) {
+    showMsg(prefix + '-reg-msg', 'Enter a valid name and phone number.', false);
+    return;
+  }
+  const fillEl = prefix === 'd' ? $('d-customer-fill') : $('r-identity-status');
+  const result = await apiCall('resident-register', '/api/resident/register', 'POST', { residentId, name, phone });
+  if (result.queued) {
+    identityState[prefix] = { phone, name, residentId };
+    fillEl.innerHTML = `<div class="successbox">📴 Saved on this phone — will register once online. Resident: <b>${name}</b> — phone ${maskPhone(phone)}</div>`;
+    if (prefix === 'd' && !$('d-name').value) $('d-name').value = name;
+    return;
+  }
+  if (!result.ok) { showMsg(prefix + '-reg-msg', result.error, false); return; }
+  identityState[prefix] = { phone, name, residentId };
+  fillEl.innerHTML = `<div class="successbox">✓ Registered. Resident: <b>${name}</b> — phone ${maskPhone(phone)}</div>`;
+  if (prefix === 'd' && !$('d-name').value) $('d-name').value = name;
+}
+
+// ---------- Camera scanner (Resident ID card barcode/QR) ----------
+let html5QrCode = null;
+
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+  } catch (e) {}
+}
+
+function startIdScanner(prefix) {
+  setIdentityMode(prefix, 'resident');
+  $('scanner-overlay').classList.remove('hidden');
+  if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+  const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+  html5QrCode.start(
+    { facingMode: "environment" },
+    config,
+    (decodedText) => {
+      playBeep();
+      stopScanner();
+      const id = decodedText.trim();
+      $(prefix + '-residentid').value = id;
+      onResidentIdInput(prefix);
+      toast(`Resident ID "${id}" scanned.`);
+    },
+    () => {}
+  ).catch(() => {
+    toast('Camera access error. Enter ID or phone manually.');
+    stopScanner();
+  });
+}
+
+function stopScanner() {
+  if (html5QrCode && html5QrCode.isScanning) {
+    html5QrCode.stop().then(() => $('scanner-overlay').classList.add('hidden'))
+      .catch(() => $('scanner-overlay').classList.add('hidden'));
+  } else {
+    $('scanner-overlay').classList.add('hidden');
+  }
+}
+
+// ==================================================================
+// SESSION (persists across reloads until Logout)
+// ==================================================================
+const SESSION_KEY = 'ashram_session';
+function getSession() { try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch (e) { return null; } }
+function setSession(v) { localStorage.setItem(SESSION_KEY, JSON.stringify(v)); }
+function clearSession() { localStorage.removeItem(SESSION_KEY); }
+
+function logout() { clearSession(); location.reload(); }
+
+function applySessionUI() {
+  const s = getSession();
+  const loggedIn = !!s;
+  $('net-dot').classList.toggle('hidden', !loggedIn);
+  $('bottom-nav').classList.toggle('hidden', !loggedIn);
+  $('logout-btn').classList.toggle('hidden', !loggedIn);
+  if (loggedIn) {
+    $('header-user').textContent = `${s.name} • ${s.phone}`;
+    $('home-admin-btn').classList.toggle('hidden', !s.isAdmin);
+  } else {
+    $('header-user').textContent = 'Not logged in';
+  }
+}
+
+// ==================================================================
+// SCREEN SWITCHING
+// ==================================================================
+function clearTransientMessages() {
+  ['login-msg','otp-msg','d-msg','c-find-msg','c-action-msg','r-msg','a-msg','p-msg','nv-msg']
+    .forEach(id => { const el = $(id); if (el) el.innerHTML = ''; });
+}
+
+function showScreen(id) {
+  const session = getSession();
+  if (!session && id !== 'login' && id !== 'otp') id = 'login';
+  clearTransientMessages();
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $('screen-' + id).classList.add('active');
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  const navBtn = document.querySelector(`[data-nav="${id}"]`);
+  if (navBtn) navBtn.classList.add('active');
+  if (id === 'storage') loadOccupancy(true);
+  if (id === 'history') loadHistory();
+  if (id === 'home') loadOccupancy(false);
+}
+
+function openDeposit() {
+  resetDepositForm();
+  $('d-msg').innerHTML = '';
+  showScreen('deposit');
+}
+function openCollect() {
+  $('c-token').value = '';
+  $('c-details').classList.add('hidden');
+  showScreen('collect');
+}
+function openRecovery() {
+  $('r-cc').value = '91';
+  $('r-phone').value = '';
+  $('r-residentid').value = '';
+  setIdentityMode('r', 'phone');
+  $('r-results').innerHTML = '';
+  $('r-collect-block').classList.add('hidden');
+  showScreen('recovery');
+}
+function openAdmin() {
+  loadConfig();
+  loadVolunteers();
+  loadResidents();
+  showScreen('admin');
+}
+function jumpToManage(token) {
+  showScreen('collect');
+  $('c-token').value = token;
+  findToken();
+}
+
+function step(spanId, delta) {
+  const el = $(spanId);
+  const val = Math.max(0, (parseInt(el.textContent) || 0) + delta);
+  el.textContent = val;
+}
+
+// ==================================================================
+// LOGIN — phone + OTP (demo-simulated: code shown on screen, since a
+// real SMS gateway is out of scope for this MVP)
+// ==================================================================
+let pendingLoginPhone = null;
+
+async function requestOtp() {
+  const digits = $('login-phone').value.trim();
+  if (digits.length < 6) { showMsg('login-msg', 'Enter a valid phone number.', false); return; }
+  pendingLoginPhone = fullPhone('login-cc', 'login-phone');
+  const res = await fetch('/api/auth/request-otp', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ phone: pendingLoginPhone }) });
+  const data = await res.json();
+  if (!res.ok) { showMsg('login-msg', data.error, false); return; }
+  $('otp-phone-display').textContent = pendingLoginPhone;
+  $('demo-otp-display').innerHTML = `<div class="demo-otp-box">DEMO MODE — in production this is sent by SMS.<br>Your code: <span class="code">${data.demoCode}</span></div>`;
+  $('otp-code').value = '';
+  $('otp-msg').innerHTML = '';
+  showScreen('otp');
+}
+
+async function verifyOtp() {
+  const code = $('otp-code').value.trim();
+  const res = await fetch('/api/auth/verify-otp', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ phone: pendingLoginPhone, code }) });
+  const data = await res.json();
+  if (!res.ok) { showMsg('otp-msg', data.error, false); return; }
+  setSession(data.volunteer);
+  applySessionUI();
+  renderSyncBar();
+  showScreen('home');
+  loadFooterPrivacy();
+}
+
+function showMsg(id, text, ok) { $(id).innerHTML = `<div class="${ok ? 'successbox' : 'error'}">${text}</div>`; }
+
+// ==================================================================
+// OFFLINE-FIRST QUEUE
+// ==================================================================
+const QUEUE_KEY = 'ashram_pending_queue';
+const FAILED_KEY = 'ashram_failed_queue';
+function getStore(key) { return JSON.parse(localStorage.getItem(key) || '[]'); }
+function setStore(key, arr) { localStorage.setItem(key, JSON.stringify(arr)); renderSyncBar(); }
+
+function labelFor(item) {
+  const p = item.body || {};
+  if (item.type === 'deposit') return `Deposit — token ${p.token}, ${p.bags||0} bag(s)`;
+  if (item.type === 'addon') return `Add-on — token ${p.token}, +${p.addBags||0} bag(s)`;
+  if (item.type === 'collect') return `Full collect — token ${p.token}`;
+  if (item.type === 'partial') return `Partial collect — token ${p.token}`;
+  if (item.type === 'lost-collect') return `Lost-token collect — token ${p.token}`;
+  if (item.type === 'resident-register') return `Resident registration — ID ${p.residentId}`;
+  if (item.type === 'resident-remove') return `Remove resident — ID ${p.residentId}`;
+  if (item.type === 'config') return `Admin settings update`;
+  if (item.type === 'volunteer-add') return `Add volunteer — ${p.name}`;
+  if (item.type === 'volunteer-remove') return `Remove volunteer — ${p.phone}`;
+  if (item.type === 'purge') return `Run privacy purge`;
+  return item.type;
+}
+
+function queueRequest(type, url, method, body) {
+  const q = getStore(QUEUE_KEY);
+  q.push({ localId: Date.now()+'-'+Math.random().toString(36).slice(2), type, url, method, body, queuedAt: new Date().toISOString() });
+  setStore(QUEUE_KEY, q);
+}
+
+async function apiCall(type, url, method, body) {
+  if (!navigator.onLine) { queueRequest(type, url, method, body); return { queued: true }; }
+  try {
+    const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: data.error || 'Request failed' };
+    return { ok: true, data };
+  } catch (e) {
+    queueRequest(type, url, method, body);
+    return { queued: true };
+  }
+}
+
+async function trySync(manual) {
+  const q = getStore(QUEUE_KEY);
+  if (!q.length || !navigator.onLine) { if (manual) renderSyncBar(); return; }
+  const remaining = [];
+  const failed = getStore(FAILED_KEY);
+  let syncedAny = false;
+  for (const item of q) {
+    try {
+      const res = await fetch(item.url, { method: item.method, headers: {'Content-Type':'application/json'}, body: item.body ? JSON.stringify(item.body) : undefined });
+      if (res.ok) syncedAny = true;
+      else { const data = await res.json().catch(() => ({})); failed.push({ ...item, error: data.error || 'Sync failed', failedAt: new Date().toISOString() }); }
+    } catch (e) { remaining.push(item); }
+  }
+  setStore(QUEUE_KEY, remaining);
+  setStore(FAILED_KEY, failed);
+  if (syncedAny) { loadOccupancy(false); loadHistory(); }
+  renderSyncBar();
+}
+
+function updateNetBadge() {
+  const online = navigator.onLine;
+  const dot = $('net-dot');
+  if (dot) dot.classList.toggle('off', !online);
+}
+
+function renderSyncBar() {
+  updateNetBadge();
+  const loggedIn = !!getSession();
+  const online = navigator.onLine;
+  const q = getStore(QUEUE_KEY);
+  const f = getStore(FAILED_KEY);
+  const line = $('sync-line');
+
+  // Nothing sync-related should show before login — this also stops old
+  // test data from a previous session looking like it's "stuck".
+  if (!loggedIn) {
+    line.classList.add('hidden');
+    $('sync-details').classList.add('hidden');
+    $('failed-details').classList.add('hidden');
+    return;
+  }
+
+  // Only take up visible header space when there's actually something to say —
+  // fully synced + online stays silent (just the small dot), so it doesn't
+  // compete for attention on every screen.
+  if (!online || q.length > 0 || f.length > 0) {
+    line.classList.remove('hidden');
+    let text = online ? `⏳ ${q.length} pending sync` : `🔴 Offline${q.length ? ` · ${q.length} saved on this phone` : ''}`;
+    if (f.length) text += ` · ⚠️ ${f.length} need review`;
+    line.innerHTML = `<span>${text}</span><button onclick="trySync(true)" ${!online ? 'disabled' : ''}>${online ? 'Sync Now' : 'Waiting for signal…'}</button>`;
+  } else {
+    line.classList.add('hidden');
+  }
+
+  renderQueueDetails(q, f);
+}
+
+function clearFailedQueue() {
+  setStore(FAILED_KEY, []);
+}
+
+// Keeps the on-screen list from growing unbounded during a long offline
+// stretch: shows the most recent 5, a "+N more" summary, and a gentle
+// heads-up once the backlog gets large enough to be worth flagging.
+function renderQueueDetails(q, f) {
+  $('sync-details').classList.toggle('hidden', q.length === 0);
+  let pendingHtml = '';
+  if (q.length >= 10) {
+    pendingHtml += `<div class="notice">You have ${q.length} pending transactions saved on this phone. If you'll be offline a while longer, let a supervisor know — everything is safe locally, but a long backlog takes longer to review once it syncs.</div>`;
+  }
+  const shown = q.slice(-5).reverse();
+  pendingHtml += shown.map(i => `<div class="pending-item">${labelFor(i)}<br><span class="muted">Saved ${new Date(i.queuedAt).toLocaleTimeString()}</span></div>`).join('');
+  if (q.length > 5) pendingHtml += `<div class="muted" style="text-align:center; padding:6px;">+ ${q.length - 5} more waiting</div>`;
+  $('pending-list').innerHTML = pendingHtml;
+
+  $('failed-details').classList.toggle('hidden', f.length === 0);
+  let failedHtml = f.slice(-5).reverse().map(i => `<div class="failed-item">${labelFor(i)}<br><span class="muted">${i.error}</span></div>`).join('');
+  if (f.length > 5) failedHtml += `<div class="muted" style="text-align:center; padding:6px;">+ ${f.length - 5} more</div>`;
+  $('failed-list').innerHTML = failedHtml;
+}
+
+window.addEventListener('online', () => { updateNetBadge(); trySync(); });
+window.addEventListener('offline', updateNetBadge);
+setInterval(() => trySync(false), 5000);
+
+// ==================================================================
+// DEPOSIT
+// ==================================================================
+let lastDepositToken = null;
+
+function resetDepositForm() {
+  $('d-cc').value = '91';
+  $('d-phone').value = '';
+  $('d-residentid').value = '';
+  $('d-name').value = '';
+  $('d-token').value = '';
+  $('d-bags').textContent = 1;
+  $('d-valuables').textContent = 0;
+  setIdentityMode('d', 'phone');
+}
+
+async function submitDeposit() {
+  const s = getSession();
+  let phone, residentId = null;
+  if (identityMode.d === 'resident') {
+    if (!identityState.d) { showMsg('d-msg', 'Resident ID not recognized yet — scan again, complete the registration above, or switch to Phone Number.', false); return; }
+    phone = identityState.d.phone;
+    residentId = identityState.d.residentId;
+  } else {
+    if ($('d-phone').value.trim().length < 6) { showMsg('d-msg', 'Enter a valid phone number.', false); return; }
+    phone = fullPhone('d-cc', 'd-phone');
+  }
+  const body = {
+    token: $('d-token').value.trim(),
+    phone, residentId,
+    name: $('d-name').value.trim(),
+    bags: $('d-bags').textContent,
+    valuables: $('d-valuables').textContent,
+    volunteer: s.name
+  };
+  if (!body.token) { showMsg('d-msg', 'Token number is required.', false); return; }
+
+  const result = await apiCall('deposit', '/api/deposit', 'POST', body);
+  if (result.queued) {
+    toast('📴 Offline — saved on this phone, will sync automatically.');
+    resetDepositForm();
+    showScreen('home');
+    return;
+  }
+  if (!result.ok) { showMsg('d-msg', '⚠️ ' + result.error, false); return; }
+
+  lastDepositToken = body.token;
+  $('deposit-summary').innerHTML = `
+    <div class="row"><b>Token / Hook</b><b>#${body.token}</b></div>
+    <hr><div class="row"><span>Bags</span><b>${body.bags}</b></div>
+    <div class="row"><span>Valuables</span><b>${body.valuables}</b></div>
+    <div class="row"><span>Phone</span><b>${maskPhone(body.phone)}</b></div>
+    ${body.residentId ? `<div class="row"><span>Resident ID</span><b>${body.residentId}</b></div>` : ''}
+    <div class="row"><span>Volunteer</span><b>${s.name}</b></div>
+    <div class="successbox">Place belongings on hook #${body.token} and give token #${body.token} to customer.</div>`;
+  resetDepositForm();
+  $('d-msg').innerHTML = '';
+  showScreen('deposit-confirm');
+}
+
+// ==================================================================
+// COLLECT (find token, then Full / Partial / Add-on / Edit)
+// ==================================================================
+let currentToken = null;
+
+async function findToken() {
+  const token = $('c-token').value.trim();
+  if (!token) return;
+  const res = await fetch('/api/deposit/' + encodeURIComponent(token));
+  const data = await res.json();
+  if (!res.ok) {
+    $('c-find-msg').innerHTML = `<div class="error">⚠️ ${data.error}</div>`;
+    $('c-details').classList.add('hidden');
+    return;
+  }
+  $('c-find-msg').innerHTML = '';
+  currentToken = token;
+  const t = data.transaction;
+  $('c-summary').innerHTML = `
+    <div class="row"><b>Token / Hook</b><b>#${t.token}</b></div>
+    <hr><div class="row"><span>Bags</span><b>${t.bags}</b></div>
+    <div class="row"><span>Valuables</span><b>${t.valuables}</b></div>
+    <div class="row"><span>Phone</span><b>${maskPhone(t.phone)}</b></div>
+    <div class="info">Ask the customer to state their phone number (or Resident ID) and confirm the last digits match before release.</div>`;
+  $('p-bags').textContent = 0; $('p-valuables').textContent = 0;
+  $('a-bags').textContent = 0; $('a-valuables').textContent = 0;
+  $('e-phone').value = splitPhone(t.phone).number;
+  $('e-cc').value = splitPhone(t.phone).cc;
+  $('e-name').value = t.name;
+  $('e-bags').value = t.bags;
+  $('e-valuables').value = t.valuables;
+  ['full','partial','addon','edit'].forEach(a => $('action-' + a).classList.add('hidden'));
+  $('c-action-msg').innerHTML = '';
+  $('c-details').classList.remove('hidden');
+}
+
+function toggleAction(action) {
+  ['full','partial','addon','edit'].forEach(a => $('action-' + a).classList.toggle('hidden', a !== action));
+}
+
+async function doFullCollect() {
+  const s = getSession();
+  const result = await apiCall('collect', '/api/collect', 'POST', { token: currentToken, volunteer: s.name });
+  if (result.queued) { toast('📴 Offline — saved on this phone.'); showScreen('home'); return; }
+  if (result.ok) { toast(`Collection complete. Token #${currentToken} back in the basket.`); showScreen('home'); }
+  else showMsg('c-action-msg', '⚠️ ' + result.error, false);
+}
+
+async function doPartialCollect() {
+  const s = getSession();
+  const body = { token: currentToken, bags: $('p-bags').textContent, valuables: $('p-valuables').textContent, volunteer: s.name };
+  const result = await apiCall('partial', '/api/collect/partial', 'POST', body);
+  if (result.queued) { toast('📴 Offline — saved on this phone.'); showScreen('home'); return; }
+  if (result.ok) {
+    const t = result.data.transaction;
+    if (t.status === 'collected') { toast(`All items collected. Token #${currentToken} is free.`); showScreen('home'); }
+    else { toast(`Partial collection recorded. Token #${currentToken} remains active.`); findToken(); }
+  } else showMsg('c-action-msg', '⚠️ ' + result.error, false);
+}
+
+async function doAddon() {
+  const s = getSession();
+  const body = { token: currentToken, addBags: $('a-bags').textContent, addValuables: $('a-valuables').textContent, volunteer: s.name };
+  const result = await apiCall('addon', '/api/deposit/addon', 'POST', body);
+  if (result.queued) { toast('📴 Offline — saved on this phone.'); showScreen('home'); return; }
+  if (result.ok) { toast(`Same transaction updated — token remains #${currentToken}.`); findToken(); }
+  else showMsg('c-action-msg', '⚠️ ' + result.error, false);
+}
+
+async function doEdit() {
+  const s = getSession();
+  const body = { phone: fullPhone('e-cc', 'e-phone'), name: $('e-name').value.trim(), bags: $('e-bags').value, valuables: $('e-valuables').value, volunteer: s.name };
+  const res = await fetch('/api/deposit/' + encodeURIComponent(currentToken), { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (res.ok) { toast('Details updated.'); findToken(); }
+  else showMsg('c-action-msg', '⚠️ ' + data.error, false);
+}
+
+// ==================================================================
+// LOST TOKEN RECOVERY
+// ==================================================================
+async function recoverySearch() {
+  let phone;
+  if (identityMode.r === 'resident') {
+    if (!identityState.r) { $('r-results').innerHTML = '<div class="error">Resident ID not recognized yet — scan again, complete the registration above, or switch to Phone Number.</div>'; return; }
+    phone = identityState.r.phone;
+  } else {
+    if ($('r-phone').value.trim().length < 6) { $('r-results').innerHTML = '<div class="error">Enter a valid phone number.</div>'; return; }
+    phone = fullPhone('r-cc', 'r-phone');
+  }
+  const res = await fetch('/api/lookup/phone/' + encodeURIComponent(phone));
+  const data = await res.json();
+  if (!data.matches.length) {
+    $('r-results').innerHTML = '<div class="error">No active deposits found for this phone number.</div>';
+    $('r-collect-block').classList.add('hidden');
+    return;
+  }
+  $('r-results').innerHTML = data.matches.map(t => `
+    <div class="info"><b>Active Deposit</b><br>Token #${t.token} • ${t.bags} bag(s) • ${t.valuables} valuable(s)
+    <br><button class="bigbtn secondary" style="margin-top:8px;" onclick="selectRecoveryToken('${t.token}')">Select this deposit</button></div>
+  `).join('');
+}
+
+function selectRecoveryToken(token) {
+  $('r-token').value = token;
+  $('r-collect-block').classList.remove('hidden');
+}
+
+async function authorizeRecovery() {
+  const s = getSession();
+  const body = { token: $('r-token').value.trim(), recoveryNote: $('r-note').value.trim(), volunteer: s.name };
+  const result = await apiCall('lost-collect', '/api/collect/lost-token', 'POST', body);
+  if (result.queued) { toast('📴 Offline — recommended to complete lost-token recovery only when online.'); showScreen('home'); return; }
+  if (result.ok) { toast(`Recovery authorized. Token #${body.token} collected.`); showScreen('home'); }
+  else showMsg('r-msg', '⚠️ ' + result.error, false);
+}
+
+// ==================================================================
+// STORAGE / OCCUPANCY (incl. hook grid visual)
+// ==================================================================
+async function loadOccupancy(withDetails) {
+  const res = await fetch('/api/occupancy');
+  const data = await res.json();
+  $('home-occ').textContent = data.occupied;
+  $('home-total').textContent = data.total;
+  $('home-free').textContent = data.free;
+  $('s-occupied').textContent = data.occupied;
+  $('s-free').textContent = data.free;
+  $('s-abandoned').textContent = data.abandoned;
+
+  if (withDetails) {
+    const pct = data.total > 0 ? Math.round((data.occupied / data.total) * 100) : 0;
+    $('s-pct').textContent = `${pct}% (${data.occupied} / ${data.total})`;
+    $('capacity-fill').style.width = pct + '%';
+    $('capacity-fill').style.background = pct >= 90 ? 'var(--danger)' : (pct >= 70 ? 'var(--warning)' : 'var(--accent)');
+
+    const hres = await fetch('/api/history');
+    const hdata = await hres.json();
+
+    const abandoned = hdata.results.filter(t => t.abandoned);
+    $('abandoned-card').classList.toggle('hidden', abandoned.length === 0);
+    $('abandoned-list').innerHTML = abandoned.slice(0, 5).map(t => `
+      <div class="activity-item"><b>Token #${t.token}</b> — ${t.bags} bag(s), ${t.valuables} valuable(s)<br>
+      <span class="muted">Deposited ${new Date(t.depositedAt).toLocaleString()} by ${t.volunteerDeposit}</span></div>
+    `).join('') + (abandoned.length > 5 ? `<div class="muted" style="text-align:center; padding:6px;">+ ${abandoned.length - 5} more</div>` : '');
+
+    const recent = hdata.results.slice(0, 6);
+    $('recent-activity').innerHTML = recent.map(t => {
+      const lastAction = t.status === 'collected' ? `Collected by ${t.volunteerCollect}` : `Deposited by ${t.volunteerDeposit}`;
+      const lastTime = t.status === 'collected' ? t.collectedAt : t.depositedAt;
+      return `<div class="activity-item"><b>Token #${t.token}</b> <span class="pill ${t.status==='active' ? (t.abandoned?'warn':'') : ''}" style="margin-left:6px;">${t.status==='active' ? (t.abandoned?'ABANDONED':'ACTIVE') : 'COLLECTED'}</span><br>
+      <span class="muted">${lastAction} • ${new Date(lastTime).toLocaleString()}</span></div>`;
+    }).join('') || '<div class="muted">No activity yet.</div>';
+  }
+}
+
+// ==================================================================
+// HISTORY
+// ==================================================================
+async function loadHistory() {
+  const q = $('h-search').value.trim();
+  const res = await fetch('/api/history?q=' + encodeURIComponent(q));
+  const data = await res.json();
+  $('h-list').innerHTML = data.results.map(t => `
+    <div class="listitem">
+      <div class="row"><b>Token #${t.token}</b><span class="pill ${t.status==='active' ? (t.abandoned?'warn':'') : ''}">${t.status==='active' ? (t.abandoned?'ABANDONED':'ACTIVE') : 'COLLECTED'}</span></div>
+      <div class="muted">${maskPhone(t.phone)} ${t.name ? '• '+t.name : ''}${t.residentId ? ' • ID '+t.residentId : ''} • ${t.bags} bag(s) • ${t.valuables} valuable(s)</div>
+      <div class="muted">Deposited by ${t.volunteerDeposit} • ${new Date(t.depositedAt).toLocaleString()}</div>
+      ${t.collectedAt ? `<div class="muted">Collected by ${t.volunteerCollect} • ${new Date(t.collectedAt).toLocaleString()}</div>` : ''}
+      ${t.lostTokenRecovery ? `<div class="muted">⚠️ Lost-token recovery: ${t.recoveryNote}</div>` : ''}
+    </div>
+  `).join('') || '<div class="muted">No matching transactions.</div>';
+}
+
+// ==================================================================
+// ADMIN (visible only if session.isAdmin)
+// ==================================================================
+async function loadConfig() {
+  const res = await fetch('/api/config');
+  const data = await res.json();
+  $('a-total').value = data.totalHooks;
+  $('a-retention').value = data.retentionDays;
+  $('a-abandoned').value = data.abandonedHours;
+  $('a-privacy').value = data.privacyNotice;
+}
+
+async function loadFooterPrivacy() {
+  const res = await fetch('/api/config');
+  const data = await res.json();
+  $('footer-privacy').textContent = data.privacyNotice;
+}
+
+async function saveConfig() {
+  const s = getSession();
+  const body = {
+    totalHooks: $('a-total').value,
+    retentionDays: $('a-retention').value,
+    abandonedHours: $('a-abandoned').value,
+    privacyNotice: $('a-privacy').value,
+    requesterPhone: s.phone
+  };
+  const result = await apiCall('config', '/api/config', 'PUT', body);
+  if (result.queued) { showMsg('a-msg', '📴 Offline — settings saved on this phone, will apply to everyone once back online.', true); return; }
+  if (result.ok) { showMsg('a-msg', `✅ Settings saved by ${result.data.changedBy}.`, true); loadFooterPrivacy(); }
+  else showMsg('a-msg', '⚠️ ' + result.error, false);
+}
+
+async function runPurgeNow() {
+  const s = getSession();
+  const result = await apiCall('purge', '/api/purge/run', 'POST', { requesterPhone: s.phone });
+  if (result.queued) { showMsg('p-msg', '📴 Offline — purge queued, will run once back online.', true); return; }
+  if (result.ok) showMsg('p-msg', `✅ Purge complete (by ${result.data.runBy}). ${result.data.purgedCount} record(s) cleaned.`, true);
+  else showMsg('p-msg', '⚠️ ' + result.error, false);
+}
+
+async function loadVolunteers() {
+  const s = getSession();
+  const res = await fetch('/api/volunteers?requesterPhone=' + encodeURIComponent(s.phone));
+  const data = await res.json();
+  if (!res.ok) return;
+  $('volunteer-list').innerHTML = data.volunteers.map(v => `
+    <div class="a-row">
+      <span>${v.name} <span class="muted">${v.phone}</span> ${v.isAdmin ? '<span class="tag">ADMIN</span>' : ''}</span>
+      <button onclick="removeVolunteer('${v.phone}')">Remove</button>
+    </div>
+  `).join('');
+}
+
+async function addVolunteer() {
+  const s = getSession();
+  const name = $('nv-name').value.trim();
+  const phone = fullPhone('nv-cc', 'nv-phone');
+  const isAdmin = $('nv-admin').checked;
+  if (!name || $('nv-phone').value.trim().length < 6) { showMsg('nv-msg', 'Enter a valid name and phone number.', false); return; }
+  const result = await apiCall('volunteer-add', '/api/volunteers/add', 'POST', { requesterPhone: s.phone, name, phone, isAdmin });
+  if (result.queued) {
+    showMsg('nv-msg', '📴 Offline — will add once back online.', true);
+    $('nv-name').value=''; $('nv-phone').value=''; $('nv-admin').checked=false;
+    return;
+  }
+  if (result.ok) {
+    showMsg('nv-msg', `✅ ${name} added.`, true);
+    $('nv-name').value=''; $('nv-phone').value=''; $('nv-admin').checked=false;
+    loadVolunteers();
+  } else showMsg('nv-msg', '⚠️ ' + result.error, false);
+}
+
+async function removeVolunteer(phone) {
+  const s = getSession();
+  const result = await apiCall('volunteer-remove', '/api/volunteers/remove', 'POST', { requesterPhone: s.phone, phone });
+  if (result.queued) { toast('📴 Offline — will remove once back online.'); return; }
+  if (result.ok) { toast('Volunteer removed.'); loadVolunteers(); }
+  else toast('⚠️ ' + result.error);
+}
+
+async function loadResidents() {
+  const s = getSession();
+  const q = $('res-search') ? $('res-search').value.trim() : '';
+  const res = await fetch('/api/residents?requesterPhone=' + encodeURIComponent(s.phone) + '&q=' + encodeURIComponent(q));
+  const data = await res.json();
+  if (!res.ok) return;
+  $('resident-list').innerHTML = data.residents.map(r => `
+    <div class="a-row">
+      <span>${r.name} <span class="muted">ID ${r.residentId} — ${maskPhone(r.phone)}</span></span>
+      <button onclick="removeResident('${r.residentId}')">Remove</button>
+    </div>
+  `).join('') || '<div class="muted">No residents registered yet.</div>';
+}
+
+async function removeResident(residentId) {
+  const s = getSession();
+  const result = await apiCall('resident-remove', '/api/residents/remove', 'POST', { requesterPhone: s.phone, residentId });
+  if (result.queued) { toast('📴 Offline — will remove once back online.'); return; }
+  if (result.ok) { toast('Resident removed.'); loadResidents(); }
+  else toast('⚠️ ' + result.error);
+}
+
+// ==================================================================
+// INIT
+// ==================================================================
+applySessionUI();
+renderSyncBar();
+loadFooterPrivacy();
+if (getSession()) showScreen('home'); else showScreen('login');
+</script>
+</body>
+</html>
