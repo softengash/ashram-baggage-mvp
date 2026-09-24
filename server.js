@@ -202,6 +202,23 @@ app.get('/api/residents', (req, res) => {
   res.json({ residents: results });
 });
 
+// ---------- Offline-cache sync (read-only bulk exports) ----------
+// The client caches these locally while online so a Resident ID scan or a
+// token lookup still has something to check against with no connection -
+// the offline queue only ever covered writes, not the reads that gate them.
+app.get('/api/sync/residents', (req, res) => {
+  const db = loadDB();
+  res.json({ residents: db.residents.map(r => ({ residentId: r.residentId, name: r.name, phone: r.phone })) });
+});
+
+app.get('/api/sync/active-transactions', (req, res) => {
+  const db = loadDB();
+  const active = db.transactions
+    .filter(t => t.status === 'active')
+    .map(t => ({ token: t.token, phone: t.phone, name: t.name, residentId: t.residentId || null, bags: t.bags, valuables: t.valuables }));
+  res.json({ transactions: active });
+});
+
 app.post('/api/residents/remove', (req, res) => {
   const db = loadDB();
   const { requesterPhone, residentId } = req.body;

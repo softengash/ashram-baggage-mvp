@@ -486,10 +486,14 @@ async function onPhoneInput(prefix) {
   if (prefix !== 'd') return; // only Deposit auto-fills a returning customer's name
   const digits = $('d-phone').value.trim();
   if (digits.length < 6) { $('d-customer-fill').innerHTML = ''; return; }
-  const res = await fetch('/api/customer/' + encodeURIComponent(fullPhone('d-cc', 'd-phone')));
-  const data = await res.json();
-  $('d-customer-fill').innerHTML = data.name ? '<div class="successbox">✓ Returning customer found — name pre-filled.</div>' : '';
-  if (data.name && !$('d-name').value) $('d-name').value = data.name;
+  try {
+    const res = await fetch('/api/customer/' + encodeURIComponent(fullPhone('d-cc', 'd-phone')));
+    const data = await res.json();
+    $('d-customer-fill').innerHTML = data.name ? '<div class="successbox">✓ Returning customer found — name pre-filled.</div>' : '';
+    if (data.name && !$('d-name').value) $('d-name').value = data.name;
+  } catch (e) {
+    // Offline: no autofill, but this never blocks the deposit itself.
+  }
 }
 
 async function onResidentIdInput(prefix) {
@@ -498,17 +502,36 @@ async function onResidentIdInput(prefix) {
   identityState[prefix] = null;
   if (!raw) { fillEl.innerHTML = ''; return; }
 
-  const res = await fetch('/api/resident/' + encodeURIComponent(raw));
-  const data = await res.json();
-  if (data.found) {
-    identityState[prefix] = { phone: data.resident.phone, name: data.resident.name, residentId: raw };
-    fillEl.innerHTML = `<div class="successbox">✓ Resident matched: <b>${data.resident.name}</b> — phone ${maskPhone(data.resident.phone)}</div>`;
-    if (prefix === 'd' && !$('d-name').value) $('d-name').value = data.resident.name;
+  let resident = null;
+  let offline = false;
+  if (navigator.onLine) {
+    try {
+      const res = await fetch('/api/resident/' + encodeURIComponent(raw));
+      const data = await res.json();
+      if (data.found) {
+        resident = data.resident;
+        setResidentsCache(upsertCache(getResidentsCache(), 'residentId', resident));
+      }
+    } catch (e) { offline = true; }
+  } else {
+    offline = true;
+  }
+
+  if (!resident && offline) {
+    resident = getResidentsCache().find(r => r.residentId.toLowerCase() === raw.toLowerCase()) || null;
+  }
+
+  if (resident) {
+    identityState[prefix] = { phone: resident.phone, name: resident.name, residentId: raw };
+    const offlineTag = offline ? '📴 ' : '✓ ';
+    const offlineNote = offline ? ' <span class="muted">(offline, from last sync)</span>' : '';
+    fillEl.innerHTML = `<div class="successbox">${offlineTag}Resident matched: <b>${resident.name}</b> — phone ${maskPhone(resident.phone)}${offlineNote}</div>`;
+    if (prefix === 'd' && !$('d-name').value) $('d-name').value = resident.name;
   } else {
     fillEl.innerHTML = `
       <div class="mini-register">
         <b>🆕 New Resident ID "${raw}"</b>
-        <p class="muted" style="margin:4px 0 8px;">Not seen before — 10-second one-time registration links this ID to a name and phone number.</p>
+        <p class="muted" style="margin:4px 0 8px;">${offline ? "Offline, so this can't be confirmed against the server yet - registering now will match or merge once back online." : 'Not seen before'} — 10-second one-time registration links this ID to a name and phone number.</p>
         <label>Resident Name</label>
         <input id="${prefix}-reg-name" type="text" placeholder="Full name">
         <label>Resident Phone Number</label>
@@ -528,6 +551,10 @@ async function registerResident(prefix, residentId) {
   }
   const fillEl = prefix === 'd' ? $('d-customer-fill') : $('r-identity-status');
   const result = await apiCall('resident-register', '/api/resident/register', 'POST', { residentId, name, phone });
+  // Cache it locally right away either way, so re-scanning this same ID
+  // later in the same offline session matches instead of asking to register
+  // it again - the queued POST will reconcile with the server once online.
+  setResidentsCache(upsertCache(getResidentsCache(), 'residentId', { residentId, name, phone }));
   if (result.queued) {
     identityState[prefix] = { phone, name, residentId };
     fillEl.innerHTML = `<div class="successbox">📴 Saved on this phone — will register once online. Resident: <b>${name}</b> — phone ${maskPhone(phone)}</div>`;
@@ -707,8 +734,11 @@ async function requestOtp() {
   const digits = $('login-phone').value.trim();
   if (digits.length < 6) { showMsg('login-msg', 'Enter a valid phone number.', false); return; }
   pendingLoginPhone = fullPhone('login-cc', 'login-phone');
-  const res = await fetch('/api/auth/request-otp', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ phone: pendingLoginPhone }) });
-  const data = await res.json();
+  let res, data;
+  try {
+    res = await fetch('/api/auth/request-otp', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ phone: pendingLoginPhone }) });
+    data = await res.json();
+  } catch (e) { showMsg('login-msg', '📴 No connection — logging in for the first time on this phone needs internet access.', false); return; }
   if (!res.ok) { showMsg('login-msg', data.error, false); return; }
   $('otp-phone-display').textContent = pendingLoginPhone;
   $('demo-otp-display').innerHTML = `<div class="demo-otp-box">DEMO MODE — in production this is sent by SMS.<br>Your code: <span class="code">${data.demoCode}</span></div>`;
@@ -719,14 +749,18 @@ async function requestOtp() {
 
 async function verifyOtp() {
   const code = $('otp-code').value.trim();
-  const res = await fetch('/api/auth/verify-otp', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ phone: pendingLoginPhone, code }) });
-  const data = await res.json();
+  let res, data;
+  try {
+    res = await fetch('/api/auth/verify-otp', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ phone: pendingLoginPhone, code }) });
+    data = await res.json();
+  } catch (e) { showMsg('otp-msg', '📴 No connection — try again once online.', false); return; }
   if (!res.ok) { showMsg('otp-msg', data.error, false); return; }
   setSession(data.volunteer);
   applySessionUI();
   renderSyncBar();
   showScreen('home');
   loadFooterPrivacy();
+  refreshOfflineCaches();
 }
 
 function showMsg(id, text, ok) { $(id).innerHTML = `<div class="${ok ? 'successbox' : 'error'}">${text}</div>`; }
@@ -745,6 +779,7 @@ function labelFor(item) {
   if (item.type === 'addon') return `Add-on — token ${p.token}, +${p.addBags||0} bag(s)`;
   if (item.type === 'collect') return `Full collect — token ${p.token}`;
   if (item.type === 'partial') return `Partial collect — token ${p.token}`;
+  if (item.type === 'edit') return `Edit details — token ${p.token}`;
   if (item.type === 'lost-collect') return `Lost-token collect — token ${p.token}`;
   if (item.type === 'resident-register') return `Resident registration — ID ${p.residentId}`;
   if (item.type === 'resident-remove') return `Remove resident — ID ${p.residentId}`;
@@ -855,9 +890,44 @@ function renderQueueDetails(q, f) {
   $('failed-list').innerHTML = failedHtml;
 }
 
-window.addEventListener('online', () => { updateNetBadge(); trySync(); });
+window.addEventListener('online', () => { updateNetBadge(); trySync(); refreshOfflineCaches(); });
 window.addEventListener('offline', updateNetBadge);
 setInterval(() => trySync(false), 5000);
+setInterval(refreshOfflineCaches, 60000);
+
+// ==================================================================
+// OFFLINE LOOKUP CACHE
+// The queue above covers writes (deposit, collect, admin changes) - it
+// replays them once back online. But identifying a resident by ID and
+// finding a token to collect are READS, and a read has nothing to queue:
+// with no connection the request just fails, with no fallback. These two
+// caches (refreshed whenever the phone is online) give those reads
+// something to check against even with no signal.
+// ==================================================================
+const RESIDENTS_CACHE_KEY = 'ashram_residents_cache';
+const ACTIVE_TX_CACHE_KEY = 'ashram_active_tx_cache';
+function getResidentsCache() { try { return JSON.parse(localStorage.getItem(RESIDENTS_CACHE_KEY) || '[]'); } catch (e) { return []; } }
+function setResidentsCache(list) { localStorage.setItem(RESIDENTS_CACHE_KEY, JSON.stringify(list)); }
+function getActiveTxCache() { try { return JSON.parse(localStorage.getItem(ACTIVE_TX_CACHE_KEY) || '[]'); } catch (e) { return []; } }
+function setActiveTxCache(list) { localStorage.setItem(ACTIVE_TX_CACHE_KEY, JSON.stringify(list)); }
+
+function upsertCache(list, keyField, entry) {
+  const idx = list.findIndex(x => x[keyField] === entry[keyField]);
+  if (idx >= 0) list[idx] = entry; else list.push(entry);
+  return list;
+}
+
+async function refreshOfflineCaches() {
+  if (!getSession() || !navigator.onLine) return;
+  try {
+    const [rRes, tRes] = await Promise.all([
+      fetch('/api/sync/residents'),
+      fetch('/api/sync/active-transactions')
+    ]);
+    if (rRes.ok) setResidentsCache((await rRes.json()).residents || []);
+    if (tRes.ok) setActiveTxCache((await tRes.json()).transactions || []);
+  } catch (e) {}
+}
 
 // ==================================================================
 // DEPOSIT
@@ -927,21 +997,48 @@ let currentToken = null;
 async function findToken() {
   const token = $('c-token').value.trim();
   if (!token) return;
-  const res = await fetch('/api/deposit/' + encodeURIComponent(token));
-  const data = await res.json();
-  if (!res.ok) {
-    $('c-find-msg').innerHTML = `<div class="error">⚠️ ${data.error}</div>`;
+
+  let t = null;
+  let offline = false;
+  if (navigator.onLine) {
+    try {
+      const res = await fetch('/api/deposit/' + encodeURIComponent(token));
+      const data = await res.json();
+      if (res.ok) {
+        t = data.transaction;
+        setActiveTxCache(upsertCache(getActiveTxCache(), 'token', {
+          token: t.token, phone: t.phone, name: t.name, residentId: t.residentId || null, bags: t.bags, valuables: t.valuables
+        }));
+      } else {
+        $('c-find-msg').innerHTML = `<div class="error">⚠️ ${data.error}</div>`;
+        $('c-details').classList.add('hidden');
+        return;
+      }
+    } catch (e) { offline = true; }
+  } else {
+    offline = true;
+  }
+
+  if (!t && offline) {
+    t = getActiveTxCache().find(x => x.token === token) || null;
+  }
+
+  if (!t) {
+    $('c-find-msg').innerHTML = offline
+      ? `<div class="error">📴 Offline, and no cached record for Token #${token} - it may not have been synced to this phone yet. Try again once online.</div>`
+      : `<div class="error">⚠️ No active deposit found for Token #${token}.</div>`;
     $('c-details').classList.add('hidden');
     return;
   }
+
   $('c-find-msg').innerHTML = '';
   currentToken = token;
-  const t = data.transaction;
   $('c-summary').innerHTML = `
     <div class="row"><b>Token / Hook</b><b>#${t.token}</b></div>
     <hr><div class="row"><span>Bags</span><b>${t.bags}</b></div>
     <div class="row"><span>Valuables</span><b>${t.valuables}</b></div>
     <div class="row"><span>Phone</span><b>${maskPhone(t.phone)}</b></div>
+    ${offline ? '<div class="notice">📴 Showing details cached from the last time this phone was online.</div>' : ''}
     <div class="info">Ask the customer to state their phone number (or Resident ID) and confirm the last digits match before release.</div>`;
   $('p-bags').textContent = 0; $('p-valuables').textContent = 0;
   $('a-bags').textContent = 0; $('a-valuables').textContent = 0;
@@ -990,11 +1087,11 @@ async function doAddon() {
 
 async function doEdit() {
   const s = getSession();
-  const body = { phone: fullPhone('e-cc', 'e-phone'), name: $('e-name').value.trim(), bags: $('e-bags').value, valuables: $('e-valuables').value, volunteer: s.name };
-  const res = await fetch('/api/deposit/' + encodeURIComponent(currentToken), { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  const data = await res.json();
-  if (res.ok) { toast('Details updated.'); findToken(); }
-  else showMsg('c-action-msg', '⚠️ ' + data.error, false);
+  const body = { token: currentToken, phone: fullPhone('e-cc', 'e-phone'), name: $('e-name').value.trim(), bags: $('e-bags').value, valuables: $('e-valuables').value, volunteer: s.name };
+  const result = await apiCall('edit', '/api/deposit/' + encodeURIComponent(currentToken), 'PUT', body);
+  if (result.queued) { toast('📴 Offline — saved on this phone, will sync automatically.'); return; }
+  if (result.ok) { toast('Details updated.'); findToken(); }
+  else showMsg('c-action-msg', '⚠️ ' + result.error, false);
 }
 
 // ==================================================================
@@ -1009,14 +1106,27 @@ async function recoverySearch() {
     if ($('r-phone').value.trim().length < 6) { $('r-results').innerHTML = '<div class="error">Enter a valid phone number.</div>'; return; }
     phone = fullPhone('r-cc', 'r-phone');
   }
-  const res = await fetch('/api/lookup/phone/' + encodeURIComponent(phone));
-  const data = await res.json();
-  if (!data.matches.length) {
-    $('r-results').innerHTML = '<div class="error">No active deposits found for this phone number.</div>';
+  let matches = [];
+  let offline = !navigator.onLine;
+  if (!offline) {
+    try {
+      const res = await fetch('/api/lookup/phone/' + encodeURIComponent(phone));
+      const data = await res.json();
+      matches = data.matches || [];
+    } catch (e) { offline = true; }
+  }
+  if (offline) {
+    matches = getActiveTxCache().filter(t => t.phone === phone);
+  }
+
+  if (!matches.length) {
+    $('r-results').innerHTML = offline
+      ? '<div class="error">📴 Offline, and no cached active deposit for this phone number on this device.</div>'
+      : '<div class="error">No active deposits found for this phone number.</div>';
     $('r-collect-block').classList.add('hidden');
     return;
   }
-  $('r-results').innerHTML = data.matches.map(t => `
+  $('r-results').innerHTML = (offline ? '<div class="notice">📴 Showing cached results from the last time this phone was online.</div>' : '') + matches.map(t => `
     <div class="info"><b>Active Deposit</b><br>Token #${t.token} • ${t.bags} bag(s) • ${t.valuables} valuable(s)
     <br><button class="bigbtn secondary" style="margin-top:8px;" onclick="selectRecoveryToken('${t.token}')">Select this deposit</button></div>
   `).join('');
@@ -1040,8 +1150,14 @@ async function authorizeRecovery() {
 // STORAGE / OCCUPANCY (incl. hook grid visual)
 // ==================================================================
 async function loadOccupancy(withDetails) {
-  const res = await fetch('/api/occupancy');
-  const data = await res.json();
+  // Live counts genuinely can't be known offline (another device could be
+  // mid-deposit right now) - the honest behavior is to leave whatever was
+  // last successfully loaded on screen rather than blank it out or throw.
+  let data;
+  try {
+    const res = await fetch('/api/occupancy');
+    data = await res.json();
+  } catch (e) { return; }
   $('home-occ').textContent = data.occupied;
   $('home-total').textContent = data.total;
   $('home-free').textContent = data.free;
@@ -1055,8 +1171,11 @@ async function loadOccupancy(withDetails) {
     $('capacity-fill').style.width = pct + '%';
     $('capacity-fill').style.background = pct >= 90 ? 'var(--danger)' : (pct >= 70 ? 'var(--warning)' : 'var(--accent)');
 
-    const hres = await fetch('/api/history');
-    const hdata = await hres.json();
+    let hdata;
+    try {
+      const hres = await fetch('/api/history');
+      hdata = await hres.json();
+    } catch (e) { return; }
 
     const abandoned = hdata.results.filter(t => t.abandoned);
     $('abandoned-card').classList.toggle('hidden', abandoned.length === 0);
@@ -1080,8 +1199,14 @@ async function loadOccupancy(withDetails) {
 // ==================================================================
 async function loadHistory() {
   const q = $('h-search').value.trim();
-  const res = await fetch('/api/history?q=' + encodeURIComponent(q));
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch('/api/history?q=' + encodeURIComponent(q));
+    data = await res.json();
+  } catch (e) {
+    $('h-list').innerHTML = '<div class="muted">📴 Offline — history isn\'t cached on this device, only Resident ID and active-token lookups are. Try again once online.</div>';
+    return;
+  }
   $('h-list').innerHTML = data.results.map(t => `
     <div class="listitem">
       <div class="row"><b>Token #${t.token}</b><span class="pill ${t.status==='active' ? (t.abandoned?'warn':'') : ''}">${t.status==='active' ? (t.abandoned?'ABANDONED':'ACTIVE') : 'COLLECTED'}</span></div>
@@ -1097,8 +1222,14 @@ async function loadHistory() {
 // ADMIN (visible only if session.isAdmin)
 // ==================================================================
 async function loadConfig() {
-  const res = await fetch('/api/config');
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch('/api/config');
+    data = await res.json();
+  } catch (e) {
+    showMsg('a-msg', "📴 Offline — can't load current settings. Avoid saving until back online, or you may overwrite settings with blank fields.", false);
+    return;
+  }
   $('a-total').value = data.totalHooks;
   $('a-retention').value = data.retentionDays;
   $('a-abandoned').value = data.abandonedHours;
@@ -1106,9 +1237,13 @@ async function loadConfig() {
 }
 
 async function loadFooterPrivacy() {
-  const res = await fetch('/api/config');
-  const data = await res.json();
-  $('footer-privacy').textContent = data.privacyNotice;
+  try {
+    const res = await fetch('/api/config');
+    const data = await res.json();
+    $('footer-privacy').textContent = data.privacyNotice;
+  } catch (e) {
+    // Offline: footer just keeps whatever notice was already showing.
+  }
 }
 
 async function saveConfig() {
@@ -1136,8 +1271,14 @@ async function runPurgeNow() {
 
 async function loadVolunteers() {
   const s = getSession();
-  const res = await fetch('/api/volunteers?requesterPhone=' + encodeURIComponent(s.phone));
-  const data = await res.json();
+  let res, data;
+  try {
+    res = await fetch('/api/volunteers?requesterPhone=' + encodeURIComponent(s.phone));
+    data = await res.json();
+  } catch (e) {
+    $('volunteer-list').innerHTML = '<div class="muted">📴 Offline — can\'t load the volunteer list right now.</div>';
+    return;
+  }
   if (!res.ok) return;
   $('volunteer-list').innerHTML = data.volunteers.map(v => `
     <div class="a-row">
@@ -1177,8 +1318,14 @@ async function removeVolunteer(phone) {
 async function loadResidents() {
   const s = getSession();
   const q = $('res-search') ? $('res-search').value.trim() : '';
-  const res = await fetch('/api/residents?requesterPhone=' + encodeURIComponent(s.phone) + '&q=' + encodeURIComponent(q));
-  const data = await res.json();
+  let res, data;
+  try {
+    res = await fetch('/api/residents?requesterPhone=' + encodeURIComponent(s.phone) + '&q=' + encodeURIComponent(q));
+    data = await res.json();
+  } catch (e) {
+    $('resident-list').innerHTML = '<div class="muted">📴 Offline — can\'t load the Resident Directory right now.</div>';
+    return;
+  }
   if (!res.ok) return;
   $('resident-list').innerHTML = data.residents.map(r => `
     <div class="a-row">
@@ -1203,6 +1350,7 @@ applySessionUI();
 renderSyncBar();
 loadFooterPrivacy();
 if (getSession()) showScreen('home'); else showScreen('login');
+refreshOfflineCaches();
 </script>
 </body>
 </html>
