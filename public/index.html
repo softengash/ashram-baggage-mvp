@@ -824,7 +824,14 @@ async function trySync(manual) {
   }
   setStore(QUEUE_KEY, remaining);
   setStore(FAILED_KEY, failed);
-  if (syncedAny) { loadOccupancy(false); loadHistory(); }
+  if (syncedAny) {
+    loadOccupancy(false); loadHistory();
+    // Reconcile the optimistic local cache with actual server state - if a
+    // queued item conflicted with something another device already did
+    // (e.g. someone else already collected this token), this cache should
+    // reflect the real outcome, not what this phone assumed offline.
+    refreshOfflineCaches();
+  }
   renderSyncBar();
 }
 
@@ -967,6 +974,16 @@ async function submitDeposit() {
   if (!body.token) { showMsg('d-msg', 'Token number is required.', false); return; }
 
   const result = await apiCall('deposit', '/api/deposit', 'POST', body);
+  if (result.queued || result.ok) {
+    // Write straight to the lookup cache too - the queue only holds the raw
+    // request to replay later, it isn't something findToken()/History can
+    // search, so without this a deposit made offline is invisible on this
+    // same device until it actually syncs.
+    setActiveTxCache(upsertCache(getActiveTxCache(), 'token', {
+      token: body.token, phone: body.phone, name: body.name, residentId: body.residentId || null,
+      bags: Number(body.bags) || 0, valuables: Number(body.valuables) || 0
+    }));
+  }
   if (result.queued) {
     toast('📴 Offline — saved on this phone, will sync automatically.');
     resetDepositForm();
@@ -1059,6 +1076,9 @@ function toggleAction(action) {
 async function doFullCollect() {
   const s = getSession();
   const result = await apiCall('collect', '/api/collect', 'POST', { token: currentToken, volunteer: s.name });
+  if (result.queued || result.ok) {
+    setActiveTxCache(getActiveTxCache().filter(t => t.token !== currentToken));
+  }
   if (result.queued) { toast('📴 Offline — saved on this phone.'); showScreen('home'); return; }
   if (result.ok) { toast(`Collection complete. Token #${currentToken} back in the basket.`); showScreen('home'); }
   else showMsg('c-action-msg', '⚠️ ' + result.error, false);
@@ -1066,29 +1086,64 @@ async function doFullCollect() {
 
 async function doPartialCollect() {
   const s = getSession();
-  const body = { token: currentToken, bags: $('p-bags').textContent, valuables: $('p-valuables').textContent, volunteer: s.name };
+  const takeBags = Number($('p-bags').textContent) || 0;
+  const takeValuables = Number($('p-valuables').textContent) || 0;
+  const body = { token: currentToken, bags: takeBags, valuables: takeValuables, volunteer: s.name };
   const result = await apiCall('partial', '/api/collect/partial', 'POST', body);
-  if (result.queued) { toast('📴 Offline — saved on this phone.'); showScreen('home'); return; }
+  if (result.queued) {
+    const cache = getActiveTxCache();
+    const entry = cache.find(t => t.token === currentToken);
+    if (entry) {
+      entry.bags = Math.max(0, entry.bags - takeBags);
+      entry.valuables = Math.max(0, entry.valuables - takeValuables);
+      setActiveTxCache(entry.bags === 0 && entry.valuables === 0 ? cache.filter(t => t.token !== currentToken) : cache);
+    }
+    toast('📴 Offline — saved on this phone.'); showScreen('home'); return;
+  }
   if (result.ok) {
     const t = result.data.transaction;
-    if (t.status === 'collected') { toast(`All items collected. Token #${currentToken} is free.`); showScreen('home'); }
-    else { toast(`Partial collection recorded. Token #${currentToken} remains active.`); findToken(); }
+    if (t.status === 'collected') {
+      setActiveTxCache(getActiveTxCache().filter(x => x.token !== currentToken));
+      toast(`All items collected. Token #${currentToken} is free.`); showScreen('home');
+    } else {
+      setActiveTxCache(upsertCache(getActiveTxCache(), 'token', { token: t.token, phone: t.phone, name: t.name, residentId: t.residentId || null, bags: t.bags, valuables: t.valuables }));
+      toast(`Partial collection recorded. Token #${currentToken} remains active.`); findToken();
+    }
   } else showMsg('c-action-msg', '⚠️ ' + result.error, false);
 }
 
 async function doAddon() {
   const s = getSession();
-  const body = { token: currentToken, addBags: $('a-bags').textContent, addValuables: $('a-valuables').textContent, volunteer: s.name };
+  const addBags = Number($('a-bags').textContent) || 0;
+  const addValuables = Number($('a-valuables').textContent) || 0;
+  const body = { token: currentToken, addBags, addValuables, volunteer: s.name };
   const result = await apiCall('addon', '/api/deposit/addon', 'POST', body);
-  if (result.queued) { toast('📴 Offline — saved on this phone.'); showScreen('home'); return; }
-  if (result.ok) { toast(`Same transaction updated — token remains #${currentToken}.`); findToken(); }
-  else showMsg('c-action-msg', '⚠️ ' + result.error, false);
+  if (result.queued) {
+    const cache = getActiveTxCache();
+    const entry = cache.find(t => t.token === currentToken);
+    if (entry) { entry.bags += addBags; entry.valuables += addValuables; setActiveTxCache(cache); }
+    toast('📴 Offline — saved on this phone.'); showScreen('home'); return;
+  }
+  if (result.ok) {
+    const t = result.data.transaction;
+    setActiveTxCache(upsertCache(getActiveTxCache(), 'token', { token: t.token, phone: t.phone, name: t.name, residentId: t.residentId || null, bags: t.bags, valuables: t.valuables }));
+    toast(`Same transaction updated — token remains #${currentToken}.`); findToken();
+  } else showMsg('c-action-msg', '⚠️ ' + result.error, false);
 }
 
 async function doEdit() {
   const s = getSession();
-  const body = { token: currentToken, phone: fullPhone('e-cc', 'e-phone'), name: $('e-name').value.trim(), bags: $('e-bags').value, valuables: $('e-valuables').value, volunteer: s.name };
+  const phone = fullPhone('e-cc', 'e-phone');
+  const name = $('e-name').value.trim();
+  const bags = Number($('e-bags').value) || 0;
+  const valuables = Number($('e-valuables').value) || 0;
+  const body = { token: currentToken, phone, name, bags, valuables, volunteer: s.name };
+  const existing = getActiveTxCache().find(t => t.token === currentToken);
   const result = await apiCall('edit', '/api/deposit/' + encodeURIComponent(currentToken), 'PUT', body);
+  if (result.queued || result.ok) {
+    const t = result.ok ? result.data.transaction : { token: currentToken, phone, name, residentId: existing ? existing.residentId : null, bags, valuables };
+    setActiveTxCache(upsertCache(getActiveTxCache(), 'token', { token: t.token, phone: t.phone, name: t.name, residentId: t.residentId || null, bags: t.bags, valuables: t.valuables }));
+  }
   if (result.queued) { toast('📴 Offline — saved on this phone, will sync automatically.'); return; }
   if (result.ok) { toast('Details updated.'); findToken(); }
   else showMsg('c-action-msg', '⚠️ ' + result.error, false);
@@ -1141,6 +1196,9 @@ async function authorizeRecovery() {
   const s = getSession();
   const body = { token: $('r-token').value.trim(), recoveryNote: $('r-note').value.trim(), volunteer: s.name };
   const result = await apiCall('lost-collect', '/api/collect/lost-token', 'POST', body);
+  if (result.queued || result.ok) {
+    setActiveTxCache(getActiveTxCache().filter(t => t.token !== body.token));
+  }
   if (result.queued) { toast('📴 Offline — recommended to complete lost-token recovery only when online.'); showScreen('home'); return; }
   if (result.ok) { toast(`Recovery authorized. Token #${body.token} collected.`); showScreen('home'); }
   else showMsg('r-msg', '⚠️ ' + result.error, false);
@@ -1204,7 +1262,7 @@ async function loadHistory() {
     const res = await fetch('/api/history?q=' + encodeURIComponent(q));
     data = await res.json();
   } catch (e) {
-    $('h-list').innerHTML = '<div class="muted">📴 Offline — history isn\'t cached on this device, only Resident ID and active-token lookups are. Try again once online.</div>';
+    renderOfflineHistory(q);
     return;
   }
   $('h-list').innerHTML = data.results.map(t => `
@@ -1216,6 +1274,44 @@ async function loadHistory() {
       ${t.lostTokenRecovery ? `<div class="muted">⚠️ Lost-token recovery: ${t.recoveryNote}</div>` : ''}
     </div>
   `).join('') || '<div class="muted">No matching transactions.</div>';
+}
+
+// Offline fallback for History: not the real ledger (no collected/past
+// records live on this device), but at least searches what this phone
+// actually knows about right now - cached active tokens, and anything
+// still sitting in the pending-sync queue (like a deposit made minutes ago
+// that hasn't reached the server yet, and so isn't in any cache either).
+function renderOfflineHistory(q) {
+  const query = q.toLowerCase();
+  const matches = (s) => !query || String(s || '').toLowerCase().includes(query);
+
+  const cached = getActiveTxCache().filter(t =>
+    matches(t.token) || matches(t.phone) || matches(t.name) || matches(t.residentId)
+  );
+  const pending = getStore(QUEUE_KEY).filter(item => {
+    const p = item.body || {};
+    return matches(p.token) || matches(p.phone) || matches(p.name) || matches(p.residentId);
+  });
+
+  if (!cached.length && !pending.length) {
+    $('h-list').innerHTML = '<div class="muted">📴 Offline — no matching cached or pending records on this device. Full history needs a connection.</div>';
+    return;
+  }
+
+  let html = '<div class="notice">📴 Offline — showing cached active tokens and items still waiting to sync, not the full history.</div>';
+  html += cached.map(t => `
+    <div class="listitem">
+      <div class="row"><b>Token #${t.token}</b><span class="pill">ACTIVE (cached)</span></div>
+      <div class="muted">${maskPhone(t.phone)} ${t.name ? '• '+t.name : ''}${t.residentId ? ' • ID '+t.residentId : ''} • ${t.bags} bag(s) • ${t.valuables} valuable(s)</div>
+    </div>
+  `).join('');
+  html += pending.map(item => `
+    <div class="listitem">
+      <div class="row"><b>${labelFor(item)}</b><span class="pill warn">PENDING SYNC</span></div>
+      <div class="muted">Saved ${new Date(item.queuedAt).toLocaleTimeString()} on this phone</div>
+    </div>
+  `).join('');
+  $('h-list').innerHTML = html;
 }
 
 // ==================================================================
