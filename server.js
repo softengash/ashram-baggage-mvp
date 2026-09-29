@@ -57,8 +57,14 @@ function findResident(db, residentId) {
 // response and logged to the server console instead of being SMS'd,
 // since a real SMS gateway is out of scope for this MVP).
 // ==================================================================
-const otpStore = {}; // phone -> { code, expiresAt }  (in-memory, fine for a demo)
+// phone -> [{ code, expiresAt }, ...] (in-memory, fine for a demo). A list,
+// not a single slot - the same demo phone is meant to be usable by several
+// people at once (e.g. judges trying it concurrently), and a single-slot
+// store means whoever requests a code second silently invalidates the
+// first person's still-valid, just-shown code.
+const otpStore = {};
 const OTP_TTL_MS = 5 * 60 * 1000;
+const MAX_PENDING_OTPS_PER_PHONE = 5; // cap so repeated clicking can't grow this unbounded
 
 app.post('/api/auth/request-otp', (req, res) => {
   const db = loadDB();
@@ -68,7 +74,10 @@ app.post('/api/auth/request-otp', (req, res) => {
     return res.status(404).json({ error: 'This phone number is not registered as a volunteer. Ask an admin to add you first.' });
   }
   const code = String(Math.floor(100000 + Math.random() * 900000));
-  otpStore[phone] = { code, expiresAt: Date.now() + OTP_TTL_MS };
+  const now = Date.now();
+  const pending = (otpStore[phone] || []).filter(e => e.expiresAt > now);
+  pending.push({ code, expiresAt: now + OTP_TTL_MS });
+  otpStore[phone] = pending.slice(-MAX_PENDING_OTPS_PER_PHONE);
   console.log(`[DEMO OTP] ${phone} (${volunteer.name}) -> ${code}`);
   res.json({
     ok: true,
@@ -81,14 +90,15 @@ app.post('/api/auth/verify-otp', (req, res) => {
   const db = loadDB();
   const phone = String(req.body.phone || '');
   const code = String(req.body.code || '');
-  const entry = otpStore[phone];
-  if (!entry || entry.expiresAt < Date.now()) {
-    return res.status(401).json({ error: 'Code expired or not requested. Please request a new code.' });
+  const now = Date.now();
+  const pending = (otpStore[phone] || []).filter(e => e.expiresAt > now);
+  const idx = pending.findIndex(e => e.code === code);
+  if (idx === -1) {
+    otpStore[phone] = pending;
+    return res.status(401).json({ error: 'Code expired or incorrect. Please request a new code.' });
   }
-  if (entry.code !== code) {
-    return res.status(401).json({ error: 'Incorrect code.' });
-  }
-  delete otpStore[phone];
+  pending.splice(idx, 1); // consume only this one - other concurrently-issued codes stay valid
+  otpStore[phone] = pending;
   const volunteer = findVolunteer(db, phone);
   if (!volunteer) return res.status(404).json({ error: 'Volunteer no longer registered.' });
   res.json({ ok: true, volunteer: { name: volunteer.name, phone: volunteer.phone, isAdmin: !!volunteer.isAdmin } });
